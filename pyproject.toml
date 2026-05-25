@@ -1,0 +1,18 @@
+[project]
+name = "travel-agency"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "a2a-sdk>=1.0.3",
+    "fastapi>=0.136.3",
+    "httpx>=0.28.1",
+    "mcp>=1.27.1",
+    "openai>=2.38.0",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
+    "rich>=15.0.0",
+    "sse-starlette>=3.4.4",
+    "uvicorn>=0.48.0",
+]

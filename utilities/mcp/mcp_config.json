@@ -1,0 +1,10 @@
+{
+    "mcpServers": {
+        "weather": {
+            "url": "http://localhost:8001/sse"
+        },
+        "attractions": {
+            "url": "http://localhost:8002/sse"
+        }
+    }
+}
