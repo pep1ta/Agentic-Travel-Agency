@@ -1,0 +1,20 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Travel Orchestrator Agent",
+  "description": "Orchestrator agent for the Agentic Travel Agency multi-agent system. Uses OpenAI to decide which sub-agent or MCP tool to invoke. Delegates hotel bookings to the Hotel Agent via the A2A protocol.",
+  "image": "",
+  "services": [
+    {
+      "name": "A2A",
+      "endpoint": "http://localhost:10002/.well-known/agent-card.json",
+      "version": "0.3.0"
+    }
+  ],
+  "registrations": [
+    {
+      "agentId": 0,
+      "agentRegistry": "eip155:11155111:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}
