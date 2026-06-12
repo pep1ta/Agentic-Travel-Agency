@@ -23,6 +23,8 @@ The prototype demonstrates a business travel workflow in which agents have limit
 
 In version 1, `SmartContractClient` is a Python mock. It simulates where a real smart contract policy could later sit.
 
+In version 2, the same policy is also implemented as a Solidity contract in `contracts/BusinessTravelPolicy.sol`. The Python prototype still uses the `SmartContractClient` mock. There is no Python-Web3 integration, no testnet deployment, and no real payment flow.
+
 ## Architecture Idea
 
 Agent != LLM.
@@ -115,6 +117,12 @@ utilities/smart_contract/smart_contract_client.py
 Policy mock for version 1. This is where the final policy-compliant offer is selected.
 
 ```text
+contracts/BusinessTravelPolicy.sol
+```
+
+Solidity version of the same business-travel policy. It is tested locally with Hardhat, but it is not yet connected to the Python agent flow.
+
+```text
 utilities/a2a/
 ```
 
@@ -133,6 +141,7 @@ MCP discovery and connector helpers. For the current business travel smoke test,
 - **OpenAI** (`openai`) for the Orchestrator's language/tool decision loop.
 - **Starlette / Uvicorn** for A2A server infrastructure.
 - **httpx** for HTTP communication.
+- **Hardhat** for local Solidity contract tests.
 
 No LangChain and no Google ADK are used.
 
@@ -250,6 +259,37 @@ Scenario A selected_offer_id: rail-1
 Scenario B selected_offer_id: flight-1-with-transfers
 Business travel verification passed.
 ```
+
+## Solidity Policy Tests
+
+Version 2 adds a local Solidity version of the business travel policy:
+
+```text
+contracts/BusinessTravelPolicy.sol
+```
+
+Run the Hardhat tests with:
+
+```powershell
+npx hardhat test
+```
+
+Expected result:
+
+```text
+6 passing
+```
+
+The tests cover:
+
+- Rail under 8h wins over flight.
+- Long rail allows flight.
+- First class rail is invalid.
+- Flight without transfers is invalid.
+- Provider reputation below 70 is invalid.
+- No valid offer returns `NO_SELECTION`.
+
+The Solidity contract mirrors the Python `SmartContractClient` policy logic, but the Python prototype still uses the Python mock. There is no Python-Web3 integration and no testnet deployment.
 
 ## Version 1 Does Not Include
 
