@@ -197,6 +197,16 @@ Then enter:
 Ich muss Montag um 10 Uhr in München sein.
 ```
 
+## Start Demo With PowerShell Script
+
+On Windows, the demo services can also be started with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start_business_travel_demo.ps1
+```
+
+The script opens separate PowerShell windows for the MCP servers and agents. It then prints the CLI command to start the user-facing chat.
+
 ## Expected Result
 
 The expected policy result is:
