@@ -1,197 +1,227 @@
-# Travel Agency — Multi-Agent System
+# Smart-Contract-governed Business Travel Planning
 
-A multi-agent travel planning system built with the A2A SDK and MCP protocol. No LLM frameworks (no LangChain, no Google ADK) — direct OpenAI API and raw SDK usage.
+This repository contains a small didactic prototype for controlled agent autonomy in business travel planning.
 
-## Architecture
+Example user request:
 
-```
-User (CMD)
-    ↓
-Customer Agent          (Port 10000)   — Entry point, forwards user messages
-    ↓
-Orchestrator Agent      (Port 10002)   — OpenAI LLM, decides which tool/agent to call
-    ↙                ↘
-Hotel Agent             MCP Tools
-(Port 10003)            - Weather Server     (Port 8001)
-                        - Attractions Server  (Port 8002)
+```text
+Ich muss Montag um 10 Uhr in München sein.
 ```
 
-The Hotel Agent has its own dedicated MCP server for hotel data:
-```
-Hotel Agent (Port 10003)
-    ↓
-Hotel MCP Server (Port 8003) — mock hotel data, search and booking
+The system collects travel options, structures them, and delegates the final policy-compliant selection to a simulated smart contract client. The important point is that the final travel decision is not made by an LLM and not by an agent.
+
+## Goal
+
+The prototype demonstrates a business travel workflow in which agents have limited autonomy:
+
+- Agents coordinate the workflow.
+- Agents fetch and structure information.
+- MCP servers provide mock travel data.
+- The LLM may help understand language and explain results.
+- The final rule-based selection is performed by `SmartContractClient`.
+- Booking and payment are not executed. They are only marked as requiring approval.
+
+In version 1, `SmartContractClient` is a Python mock. It simulates where a real smart contract policy could later sit.
+
+## Architecture Idea
+
+Agent != LLM.
+
+The system flow is:
+
+```text
+User
+  -> CustomerAgent
+  -> OrchestratorAgent
+  -> BusinessTravelAgent
+  -> Rail MCP Server
+  -> Flight MCP Server
+  -> Mobility MCP Server
+  -> SmartContractClient
+  -> Policy-compliant result
 ```
 
-## Stack
+Roles:
 
-- **A2A SDK** (`a2a-sdk>=1.0.3`) — Agent-to-Agent communication
-- **MCP SDK** (`mcp`) — Model Context Protocol for tool access
-- **OpenAI** (`openai`) — LLM for the Orchestrator
-- **FastAPI / Starlette / Uvicorn** — A2A server infrastructure
-- **httpx** — HTTP client for external APIs
+- `CustomerAgent` receives the user's request and forwards it into the A2A system.
+- `OrchestratorAgent` delegates business travel requests to the BusinessTravelAgent.
+- `BusinessTravelAgent` coordinates the business travel planning workflow.
+- MCP servers return mock rail, flight, and mobility data.
+- `SmartContractClient` simulates the business travel policy and makes the final selection.
+
+The BusinessTravelAgent may optimize information gathering. For example, if a valid rail option under 8 hours already exists, flight and transfer enrichment can be skipped because rail is preferred by policy. This is not the final offer selection. The final selection still happens in `SmartContractClient`.
+
+## Policy Rules
+
+Version 1 uses a simple business travel policy:
+
+- Rail is preferred if at least one valid rail option with `duration_minutes <= 480` exists.
+- 480 minutes equals 8 hours.
+- Flight may only win if no valid rail option under 8 hours exists.
+- Rail must be second class.
+- Flight must be economy.
+- Flight must include transfers to and from the airport.
+- Total price must be within the policy budget.
+- Provider reputation must meet the minimum reputation threshold.
+- If multiple offers are valid inside the allowed category, `cheapest_valid` wins.
+- Booking and payment require approval.
+
+## Why This Scenario Matters
+
+Business travel is a useful demo scenario because companies often have clear travel policies:
+
+- prefer rail under a certain duration,
+- require economy class for flights,
+- enforce budget limits,
+- require approved providers,
+- require approval before booking or payment.
+
+The SmartContractClient acts as the safety anchor. Agents remain useful and autonomous for coordination and information gathering, but the legally or organizationally relevant decision is constrained by deterministic policy logic.
 
 ## Project Structure
 
+Important folders and files:
+
+```text
+agents/customer/
 ```
-travel_agency/
-├── agents/
-│   ├── orchestrator/
-│   │   ├── agent.py        # OrchestratorAgent — OpenAI + MCP + A2A delegation
-│   │   ├── executor.py     # OrchestratorExecutor — AgentExecutor adapter
-│   │   └── __main__.py     # Entry point, Port 10002
-│   ├── customer/
-│   │   ├── agent.py        # CustomerAgent — thin pass-through to Orchestrator
-│   │   ├── executor.py     # CustomerExecutor — AgentExecutor adapter
-│   │   └── __main__.py     # Entry point, Port 10000
-│   └── hotel/
-│       ├── agent.py        # HotelAgent — multi-turn booking logic, calls Hotel MCP Server
-│       ├── executor.py     # HotelExecutor — AgentExecutor adapter with INPUT_REQUIRED support
-│       └── __main__.py     # Entry point, Port 10003
-├── mcp_servers/
-│   ├── weather_server.py     # Weather via wttr.in, SSE Transport, Port 8001
-│   ├── attractions_server.py # Attractions via Overpass API, SSE Transport, Port 8002
-│   └── hotel_server.py       # Mock hotel data, SSE Transport, Port 8003
-├── app/
-│   └── cmd/
-│       └── cmd.py          # CLI client
-├── utilities/
-│   └── mcp/
-│       ├── mcp_connect.py      # MCPConnector — loads tools from MCP servers
-│       ├── mcp_discovery.py    # MCPDiscovery — reads mcp_config.json
-│       └── mcp_config.json     # MCP server URLs for the Orchestrator
-└── utilities/
-    └── a2a/
-        └── agent_registry.json # A2A sub-agent URLs for the Orchestrator
+
+Customer-facing A2A agent. It receives user messages and forwards them to the OrchestratorAgent.
+
+```text
+agents/orchestrator/
 ```
+
+Delegates requests to available sub-agents. For the business travel use case, it delegates to the BusinessTravelAgent.
+
+```text
+agents/business_travel/
+```
+
+Coordinates the business travel workflow. It calls the rail, flight, and mobility MCP servers, structures offers, and sends them to the SmartContractClient.
+
+```text
+mcp_servers/rail_server.py
+mcp_servers/flight_server.py
+mcp_servers/mobility_server.py
+```
+
+Simple MCP servers with mock travel data. They only provide information and do not make the final decision.
+
+```text
+utilities/smart_contract/smart_contract_client.py
+```
+
+Policy mock for version 1. This is where the final policy-compliant offer is selected.
+
+```text
+utilities/a2a/
+```
+
+A2A configuration, especially the sub-agent registry used by the OrchestratorAgent.
+
+```text
+utilities/mcp/
+```
+
+MCP discovery and connector helpers. For the current business travel smoke test, the Orchestrator does not need old tourist MCP tools.
+
+## Stack
+
+- **A2A SDK** (`a2a-sdk`) for Agent-to-Agent communication.
+- **MCP SDK** (`mcp`) for tool servers.
+- **OpenAI** (`openai`) for the Orchestrator's language/tool decision loop.
+- **Starlette / Uvicorn** for A2A server infrastructure.
+- **httpx** for HTTP communication.
+
+No LangChain and no Google ADK are used.
 
 ## Setup
 
-```bash
-# Install dependencies
-uv sync
+Install dependencies:
 
-# Create .env file
-echo "OPENAI_API_KEY=your_key_here" > .env
+```powershell
+uv sync
 ```
 
-## Starting the System
+Create a `.env` file with an OpenAI API key:
+
+```powershell
+OPENAI_API_KEY=your_key_here
+```
+
+## Full Smoke Test
 
 Start each component in a separate terminal, in this order:
 
-**1. Weather MCP Server**
-```bash
-uv run python mcp_servers/weather_server.py
-# Runs on http://localhost:8001
+```powershell
+uv run python mcp_servers/rail_server.py
 ```
 
-**2. Attractions MCP Server**
-```bash
-uv run python mcp_servers/attractions_server.py
-# Runs on http://localhost:8002
+```powershell
+uv run python mcp_servers/flight_server.py
 ```
 
-**3. Hotel MCP Server**
-```bash
-uv run python mcp_servers/hotel_server.py
-# Runs on http://localhost:8003
+```powershell
+uv run python mcp_servers/mobility_server.py
 ```
 
-**4. Hotel Agent**
-```bash
-uv run python -m agents.hotel
-# Runs on http://localhost:10003
+```powershell
+uv run python -m agents.business_travel
 ```
 
-**5. Orchestrator Agent**
-```bash
+```powershell
 uv run python -m agents.orchestrator
-# Runs on http://localhost:10002
 ```
 
-**6. Customer Agent**
-```bash
+```powershell
 uv run python -m agents.customer
-# Runs on http://localhost:10000
 ```
 
-**7. CMD Client**
-```bash
+```powershell
 uv run python app/cmd/cmd.py --agent http://localhost:10000
-
-# Options:
-# --agent    Base URL of the A2A agent (default: http://localhost:10000)
 ```
 
-## Configuration
+Then enter:
 
-**`utilities/mcp/mcp_config.json`** — MCP server endpoints for the Orchestrator:
-```json
-{
-    "mcpServers": {
-        "weather": { "url": "http://localhost:8001/sse" },
-        "attractions": { "url": "http://localhost:8002/sse" }
-    }
-}
+```text
+Ich muss Montag um 10 Uhr in München sein.
 ```
 
-Note: The Hotel MCP Server (`http://localhost:8003`) is not in this config — it is called directly by the Hotel Agent, not by the Orchestrator.
+## Expected Result
 
-**`utilities/a2a/agent_registry.json`** — A2A sub-agent URLs for the Orchestrator:
-```json
-[
-    "http://localhost:10003"
-]
+The expected policy result is:
+
+- `rail-1` is selected.
+- Reason: a valid rail option under 8 hours exists.
+- Flight/Mobility enrichment is normally skipped because rail is preferred by policy.
+- The final selection is made by `SmartContractClient`.
+- No booking or payment is executed.
+- Approval is required before booking/payment.
+
+The response should make clear that the agent did not independently choose the best offer. It gathered and structured information, while the SmartContractClient applied the policy.
+
+## Isolated BusinessTravelAgent Demo
+
+For debugging the BusinessTravelAgent without the Orchestrator, run:
+
+```powershell
+uv run python -m agents.business_travel.demo
 ```
 
-## Example Usage
+This starts the needed mock MCP servers if they are not already running, calls the BusinessTravelAgent directly, and prints the policy result.
 
-**Weather and attractions:**
-```
-You: What is the weather in Rome?
-Agent: The weather in Rome is sunny with a temperature of 29°C.
+## Version 1 Does Not Include
 
-You: What can I do in Rome?
-Agent: Here are some attractions in Rome:
-- Quattro Fontane (attraction)
-- Catacombe di Priscilla (attraction)
-- Fontana dell'Acqua Acetosa (attraction)
-```
+Version 1 intentionally avoids advanced infrastructure:
 
-**Hotel booking (multi-turn):**
-```
-You: Book a hotel in Rome
-Agent: Available hotels in Rome:
-- Budget Inn (budget) — $60/night
-- City Hotel (mid) — $120/night
-- Grand Palace (luxury) — $280/night
-Which hotel would you like to book?
+- no real blockchain,
+- no ERC-8004,
+- no 8004scan,
+- no ERC-8183,
+- no real payment,
+- no real travel APIs,
+- no complex memory,
+- no generic agent base classes.
 
-Agent is waiting for input. Please enter your response: City Hotel
-Agent: What is your check-in date? (format: YYYY-MM-DD)
-
-Agent is waiting for input. Please enter your response: 2026-06-24
-Agent: What is your check-out date? (format: YYYY-MM-DD)
-
-Agent is waiting for input. Please enter your response: 2026-06-28
-Agent: Booking summary:
-  Hotel:     City Hotel
-  City:      Rome
-  Check-in:  2026-06-24
-  Check-out: 2026-06-28
-Would you like to confirm this booking? (yes/no)
-
-Agent is waiting for input. Please enter your response: yes
-Agent: Booking Confirmation
-====================
-Hotel:    City Hotel (mid)
-City:     Rome
-Check-in: 2026-06-24
-Check-out:2026-06-28
-Nights:   4
-
-Invoice
-=======
-$120/night x 4 nights = $480
-Total due: $480
-```
+The prototype stays small on purpose so the architecture and responsibility boundaries remain easy to inspect in a master thesis demo.
