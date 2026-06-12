@@ -1,5 +1,6 @@
 # agents/business_travel/agent.py
 
+import ast
 import json
 import logging
 from typing import Any
@@ -60,11 +61,20 @@ class BusinessTravelAgent:
         if not result.content:
             return None
 
-        text = result.content[0].text
+        parsed_items = [self._parse_mcp_text(item.text) for item in result.content]
+        if len(parsed_items) == 1:
+            return parsed_items[0]
+        return parsed_items
+
+    def _parse_mcp_text(self, text: str) -> Any:
+        """Parses one text item returned by an MCP tool."""
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            return text
+            try:
+                return ast.literal_eval(text)
+            except (ValueError, SyntaxError):
+                return text
 
     async def _search_rail_options(self, origin: str, destination: str, appointment_time: str) -> list[dict]:
         """Fetches rail options from the Rail MCP server."""
@@ -202,6 +212,7 @@ class BusinessTravelAgent:
         return (
             "Business travel policy result\n"
             "============================\n"
+            "Final selection made by SmartContractClient policy logic.\n"
             "\n"
             "Selected option:\n"
             f"{self._format_offer(decision['selected_offer'])}\n"
