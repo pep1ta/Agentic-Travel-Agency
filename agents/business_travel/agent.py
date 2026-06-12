@@ -35,6 +35,7 @@ class BusinessTravelAgent:
 
     def __init__(self):
         self._smart_contract = SmartContractClient()
+        self._last_enrichment_note: str | None = None
 
     # -----------------------------------------------------------------------
     # MCP calls
@@ -78,19 +79,27 @@ class BusinessTravelAgent:
 
     async def _search_rail_options(self, origin: str, destination: str, appointment_time: str) -> list[dict]:
         """Fetches rail options from the Rail MCP server."""
-        return await self._call_mcp_tool(RAIL_MCP_URL, "search_rail_options", {
+        logger.info("Before search_rail_options MCP call")
+        rail_options = await self._call_mcp_tool(RAIL_MCP_URL, "search_rail_options", {
             "origin": origin,
             "destination": destination,
             "appointment_time": appointment_time,
         })
+        logger.info("After search_rail_options MCP call")
+        logger.info(f"Rail offers found: {len(rail_options)}")
+        return rail_options
 
     async def _search_flight_options(self, origin: str, destination: str, appointment_time: str) -> list[dict]:
         """Fetches flight options from the Flight MCP server."""
-        return await self._call_mcp_tool(FLIGHT_MCP_URL, "search_flight_options", {
+        logger.info("Before search_flight_options MCP call")
+        flight_options = await self._call_mcp_tool(FLIGHT_MCP_URL, "search_flight_options", {
             "origin": origin,
             "destination": destination,
             "appointment_time": appointment_time,
         })
+        logger.info("After search_flight_options MCP call")
+        logger.info(f"Flight offers found: {len(flight_options)}")
+        return flight_options
 
     async def _get_airport_transfers(
         self,
@@ -100,12 +109,19 @@ class BusinessTravelAgent:
         arrival_airport: str,
     ) -> dict:
         """Fetches airport transfer information from the Mobility MCP server."""
-        return await self._call_mcp_tool(MOBILITY_MCP_URL, "get_airport_transfers", {
+        logger.info(
+            f"Before get_airport_transfers MCP call for {departure_airport}->{arrival_airport}"
+        )
+        transfers = await self._call_mcp_tool(MOBILITY_MCP_URL, "get_airport_transfers", {
             "origin": origin,
             "destination": destination,
             "departure_airport": departure_airport,
             "arrival_airport": arrival_airport,
         })
+        logger.info(
+            f"After get_airport_transfers MCP call for {departure_airport}->{arrival_airport}"
+        )
+        return transfers
 
     # -----------------------------------------------------------------------
     # Travel option preparation
@@ -131,9 +147,10 @@ class BusinessTravelAgent:
         The BusinessTravelAgent only structures information here. It does not
         decide whether this combined offer should win.
         """
+        logger.info(f"Before combining flight + transfer for {flight['offer_id']}")
         transfers_available = transfers.get("transfers_available") is True
 
-        return {
+        combined_offer = {
             "offer_id": f"{flight['offer_id']}-with-transfers",
             "mode": "flight_with_transfers",
             "provider": flight["provider"],
@@ -150,14 +167,32 @@ class BusinessTravelAgent:
             "arrival_airport": flight["arrival_airport"],
             "transfer_details": transfers,
         }
+        logger.info(f"After combining flight + transfer for {combined_offer['offer_id']}")
+        return combined_offer
 
     async def _build_offers(self, request: dict) -> list[dict]:
         """Collects rail and flight data and returns policy-checkable offers."""
+        self._last_enrichment_note = None
+
         rail_options = await self._search_rail_options(
             request["origin"],
             request["destination"],
             request["appointment_time"],
         )
+
+        valid_preferred_rail_exists = self._has_policy_relevant_rail_option(rail_options)
+        logger.info(f"Valid rail option under 8 hours found: {valid_preferred_rail_exists}")
+
+        if valid_preferred_rail_exists:
+            # Rail is preferred by policy in this case. The agent does not make
+            # the final choice, but it can avoid unnecessary flight enrichment.
+            self._last_enrichment_note = (
+                "Flight enrichment skipped because a valid rail option under 8 hours "
+                "exists and rail is preferred by policy."
+            )
+            logger.info(self._last_enrichment_note)
+            return rail_options
+
         flight_options = await self._search_flight_options(
             request["origin"],
             request["destination"],
@@ -165,7 +200,15 @@ class BusinessTravelAgent:
         )
 
         combined_flights = []
-        for flight in flight_options:
+        economy_flights = [
+            flight for flight in flight_options
+            if flight.get("travel_class") == "economy"
+        ]
+        logger.info(f"Economy flight offers considered for transfer enrichment: {len(economy_flights)}")
+
+        # Version 1 keeps the fallback simple: if rail cannot win by policy,
+        # enrich only the first economy flight with transfers.
+        for flight in economy_flights[:1]:
             transfers = await self._get_airport_transfers(
                 request["origin"],
                 request["destination"],
@@ -175,6 +218,28 @@ class BusinessTravelAgent:
             combined_flights.append(self._combine_flight_with_transfers(flight, transfers))
 
         return rail_options + combined_flights
+
+    def _has_policy_relevant_rail_option(self, rail_options: list[dict]) -> bool:
+        """Checks whether rail can already satisfy the V1 policy preference.
+
+        This is not the final offer selection. It only decides whether expensive
+        flight + transfer enrichment is needed before handing offers to the
+        SmartContractClient.
+        """
+        policy = self._smart_contract.get_policy()
+
+        for offer in rail_options:
+            if (
+                offer.get("mode") == "rail"
+                and offer.get("travel_class") == "second_class"
+                and offer.get("duration_minutes", 0) <= policy["rail_preferred_max_duration_minutes"]
+                and offer.get("total_price", 0) <= policy["max_budget"]
+                and offer.get("provider_reputation", 0) >= policy["min_provider_reputation"]
+                and offer.get("arrival_buffer_minutes", 0) >= policy["min_arrival_buffer_minutes"]
+            ):
+                return True
+
+        return False
 
     # -----------------------------------------------------------------------
     # Response formatting
@@ -220,6 +285,9 @@ class BusinessTravelAgent:
             "Decision reason:\n"
             f"{decision['decision_reason']}\n"
             "\n"
+            "Travel data enrichment:\n"
+            f"{self._last_enrichment_note or 'Flight and transfer enrichment was performed as needed.'}\n"
+            "\n"
             "Rejected options:\n"
             f"{self._format_rejections(decision['rejected_offers'])}\n"
             "\n"
@@ -245,6 +313,13 @@ class BusinessTravelAgent:
 
         # Final policy selection happens here, in the simulated smart contract
         # client. The agent does not choose the best offer itself.
+        logger.info("Before SmartContractClient.select_policy_compliant_offer")
         decision = self._smart_contract.select_policy_compliant_offer(offers)
+        logger.info("After SmartContractClient.select_policy_compliant_offer")
+        selected_offer = decision.get("selected_offer")
+        selected_offer_id = selected_offer.get("offer_id") if selected_offer else None
+        logger.info(f"Selected offer_id from SmartContractClient: {selected_offer_id}")
 
-        return self._format_decision(decision), False
+        response = self._format_decision(decision)
+        logger.info("BusinessTravelAgent returning final text response")
+        return response, False

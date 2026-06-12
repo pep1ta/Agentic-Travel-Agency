@@ -38,6 +38,7 @@ class BusinessTravelExecutor(AgentExecutor):
 
             response, input_required = await self.agent.invoke(user_text, context_id)
             logger.info(f"BusinessTravelAgent result: {response[:200]}")
+            logger.info("BusinessTravelExecutor is preparing to return the agent result")
 
             reply = updater.new_agent_message(parts=[Part(text=response)])
 
