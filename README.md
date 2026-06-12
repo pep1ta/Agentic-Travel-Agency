@@ -211,6 +211,25 @@ uv run python -m agents.business_travel.demo
 
 This starts the needed mock MCP servers if they are not already running, calls the BusinessTravelAgent directly, and prints the policy result.
 
+The demo shows two scenarios:
+
+**Scenario A: Rail preferred**
+
+- A valid rail option with `duration_minutes <= 480` exists.
+- Flight/Mobility enrichment is skipped.
+- The SmartContractClient selects `rail-1`.
+
+**Scenario B: Rail too long**
+
+- The demo message contains a marker such as `über 8 Stunden` or `long-rail`.
+- Rail options are treated as longer than 8 hours in the demo context.
+- The BusinessTravelAgent calls the Flight MCP Server and the Mobility MCP Server.
+- The first economy flight option is combined with airport transfers.
+- This creates `flight-1-with-transfers`.
+- The SmartContractClient selects `flight-1-with-transfers` if it is policy-compliant.
+
+Scenario B is important because it shows policy-dependent multi-agent/tool coordination. The agent fetches additional information only when the policy makes it necessary. The final selection still remains with the SmartContractClient.
+
 ## Version 1 Does Not Include
 
 Version 1 intentionally avoids advanced infrastructure:
