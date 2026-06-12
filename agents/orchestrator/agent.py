@@ -118,11 +118,20 @@ class OrchestratorAgent:
 
     def _root_instruction(self) -> str:
         return (
-            "You are a travel agency orchestrator. You help users plan trips by:\n"
+            "You are a travel agency orchestrator. You route user requests to the right tools or sub-agents.\n"
+            "For business travel requests, use list_agents() and then delegate_task() to the "
+            "\"Business Travel Agent\".\n"
+            "The Business Travel Agent collects and structures rail, flight and mobility options.\n"
+            "The final policy-compliant travel selection is made by the SmartContractClient, "
+            "not by you, not by the LLM, and not by the agent.\n"
+            "Do not choose the final travel option yourself. Explain the result returned by the delegated agent.\n\n"
+            "You help users by:\n"
             "1. Using list_agents() to see available sub-agents.\n"
-            "2. Using delegate_task(agent_name, message) to delegate to the hotel_agent "
-            "   for hotel searches and bookings.\n"
-            "3. Using MCP tools to fetch weather and attractions data.\n"
+            "2. Using delegate_task(agent_name, message) to delegate business travel planning "
+            "   to the Business Travel Agent.\n"
+            "3. Using delegate_task(agent_name, message) to delegate hotel searches and bookings "
+            "   to the Hotel Agent when the user asks for hotel booking.\n"
+            "4. Using MCP tools to fetch weather and attractions data when relevant.\n"
             "Always pick the right tool for the job and respond helpfully."
         )
 

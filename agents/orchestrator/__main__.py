@@ -38,16 +38,22 @@ def build_agent_card() -> AgentCard:
         id="orchestrate_travel",
         name="Travel Orchestrator",
         description=(
-            "Orchestrates travel planning by delegating to hotel agents "
-            "and fetching weather and attractions via MCP tools."
+            "Orchestrates travel planning by delegating business travel requests "
+            "to the Business Travel Agent and hotel bookings to the Hotel Agent."
         ),
         tags=["travel", "orchestrator"],
-        examples=["Plan a trip to Rome", "Find hotels in Berlin"],
+        examples=[
+            "I need to be in Munich on Monday at 10:00.",
+            "Find hotels in Berlin",
+        ],
     )
 
     return AgentCard(
         name="Travel Orchestrator",
-        description="Orchestrates the digital travel agency multi-agent system.",
+        description=(
+            "Orchestrates the digital travel agency multi-agent system. "
+            "For business travel, final policy selection is delegated to the SmartContractClient."
+        ),
         version="1.0.0",
         capabilities=AgentCapabilities(streaming=False),
         skills=[skill],
