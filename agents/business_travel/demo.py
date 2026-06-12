@@ -14,7 +14,16 @@ from pathlib import Path
 
 from agents.business_travel.agent import BusinessTravelAgent
 
-USER_REQUEST = "Ich muss Montag um 10 Uhr in München sein."
+SCENARIOS = [
+    (
+        "Scenario A: Rail preferred",
+        "Ich muss Montag um 10 Uhr in München sein.",
+    ),
+    (
+        "Scenario B: Rail too long, flight with transfers evaluated",
+        "Ich muss Montag um 10 Uhr in München sein, but rail is over 8 hours.",
+    ),
+]
 
 MCP_SERVERS = [
     ("Rail MCP Server", 8004, Path("mcp_servers") / "rail_server.py"),
@@ -75,20 +84,27 @@ async def _stop_started_servers(processes: list[asyncio.subprocess.Process]) -> 
 
 
 async def main() -> None:
-    """Runs the complete isolated demo flow."""
+    """Runs two isolated BusinessTravelAgent demo scenarios."""
     started_processes = await _start_missing_mcp_servers()
 
     try:
         agent = BusinessTravelAgent()
 
-        print("\nUser request:")
-        print(USER_REQUEST)
+        for index, (name, user_request) in enumerate(SCENARIOS, start=1):
+            print("\n" + "=" * 72)
+            print(name)
+            print("=" * 72)
+            print("\nUser request:")
+            print(user_request)
 
-        response, input_required = await agent.invoke(USER_REQUEST, context_id="business-travel-demo")
+            response, input_required = await agent.invoke(
+                user_request,
+                context_id=f"business-travel-demo-{index}",
+            )
 
-        print("\nBusinessTravelAgent response:")
-        print(response)
-        print(f"\nInput required: {input_required}")
+            print("\nBusinessTravelAgent response:")
+            print(response)
+            print(f"\nInput required: {input_required}")
 
     finally:
         await _stop_started_servers(started_processes)

@@ -139,7 +139,37 @@ class BusinessTravelAgent:
             "destination": "München",
             "appointment_time": "Monday 10:00",
             "original_query": query,
+            "force_long_rail": self._is_long_rail_demo_request(query),
         }
+
+    def _is_long_rail_demo_request(self, query: str) -> bool:
+        """Detects the simple demo scenario where rail should be too long.
+
+        This is deliberately not complex NLP. It is only a small demo switch so
+        we can show the flight + mobility fallback without changing MCP mocks.
+        """
+        query_lower = query.lower()
+        return (
+            "over 8 hours" in query_lower
+            or "ueber 8 stunden" in query_lower
+            or "über 8 stunden" in query_lower
+            or "long-rail" in query_lower
+        )
+
+    def _make_rail_options_long_for_demo(self, rail_options: list[dict]) -> list[dict]:
+        """Returns copied rail offers where no rail option is under 8 hours.
+
+        This keeps the normal rail-1 smoke test intact. The override is only
+        used for the second demo scenario.
+        """
+        long_rail_options = []
+
+        for offer in rail_options:
+            copied_offer = offer.copy()
+            copied_offer["duration_minutes"] = max(copied_offer.get("duration_minutes", 0), 560)
+            long_rail_options.append(copied_offer)
+
+        return long_rail_options
 
     def _combine_flight_with_transfers(self, flight: dict, transfers: dict) -> dict:
         """Builds one policy-checkable offer from a flight and transfer data.
@@ -180,6 +210,10 @@ class BusinessTravelAgent:
             request["appointment_time"],
         )
 
+        if request.get("force_long_rail"):
+            logger.info("Long-rail demo scenario active: overriding rail durations above 8 hours")
+            rail_options = self._make_rail_options_long_for_demo(rail_options)
+
         valid_preferred_rail_exists = self._has_policy_relevant_rail_option(rail_options)
         logger.info(f"Valid rail option under 8 hours found: {valid_preferred_rail_exists}")
 
@@ -216,6 +250,13 @@ class BusinessTravelAgent:
                 flight["arrival_airport"],
             )
             combined_flights.append(self._combine_flight_with_transfers(flight, transfers))
+
+        if combined_flights:
+            self._last_enrichment_note = (
+                "Flight and transfer enrichment was performed for the first economy "
+                "flight because no valid rail option under 8 hours exists."
+            )
+            logger.info(self._last_enrichment_note)
 
         return rail_options + combined_flights
 
