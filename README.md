@@ -230,6 +230,27 @@ The demo shows two scenarios:
 
 Scenario B is important because it shows policy-dependent multi-agent/tool coordination. The agent fetches additional information only when the policy makes it necessary. The final selection still remains with the SmartContractClient.
 
+## Automated Verification
+
+Run this command to verify both business travel scenarios:
+
+```powershell
+uv run python scripts/verify_business_travel.py
+```
+
+The script checks:
+
+- Scenario A: a valid rail option under 8 hours exists, so the SmartContractClient selects `rail-1`.
+- Scenario B: rail is treated as over 8 hours in the demo context, so Flight + Mobility are included and the SmartContractClient selects `flight-1-with-transfers`.
+
+Expected output:
+
+```text
+Scenario A selected_offer_id: rail-1
+Scenario B selected_offer_id: flight-1-with-transfers
+Business travel verification passed.
+```
+
 ## Version 1 Does Not Include
 
 Version 1 intentionally avoids advanced infrastructure:
