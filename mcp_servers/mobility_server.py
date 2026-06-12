@@ -17,7 +17,7 @@ mcp = FastMCP("mobility", port=8006)
 # The final policy-based selection happens later in the SmartContractClient,
 # not in this MCP server.
 
-AIRPORT_TRANSFERS = {
+AIRPORT_TRANSFERS_MUNICH = {
     "transfers_available": True,
     "origin_to_airport": {
         "from": "Dortmund",
@@ -33,6 +33,24 @@ AIRPORT_TRANSFERS = {
     },
     "total_transfer_duration_minutes": 110,
     "total_transfer_price": 36,
+}
+
+AIRPORT_TRANSFERS_VIENNA = {
+    "transfers_available": True,
+    "origin_to_airport": {
+        "from": "Dortmund",
+        "to": "Düsseldorf Airport",
+        "duration_minutes": 65,
+        "price": 22,
+    },
+    "airport_to_destination": {
+        "from": "Vienna Airport",
+        "to": "Wien Hbf",
+        "duration_minutes": 25,
+        "price": 18,
+    },
+    "total_transfer_duration_minutes": 90,
+    "total_transfer_price": 40,
 }
 
 
@@ -52,8 +70,12 @@ def get_airport_transfers(
         arrival_airport: Airport code or name where the flight arrives.
     """
     # Version 1 keeps this deliberately simple: the input parameters are part
-    # of the tool interface, but the mock server always returns the same data.
-    return AIRPORT_TRANSFERS.copy()
+    # of the tool interface, and the mock server switches only between the
+    # two didactic demo routes.
+    if arrival_airport.upper() == "VIE" or "wien" in destination.lower() or "vienna" in destination.lower():
+        return AIRPORT_TRANSFERS_VIENNA.copy()
+
+    return AIRPORT_TRANSFERS_MUNICH.copy()
 
 
 if __name__ == "__main__":

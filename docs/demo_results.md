@@ -4,6 +4,7 @@ This document summarizes the two verified business-travel demo scenarios.
 
 ## Scenario A: Rail Preferred
 
+- Request: `Ich muss Montag um 10 Uhr von Dortmund nach München.`
 - A valid rail option under 8 hours exists.
 - Flight/Mobility enrichment is skipped.
 - `SmartContractClient` selects `rail-1`.
@@ -12,7 +13,8 @@ This document summarizes the two verified business-travel demo scenarios.
 
 ## Scenario B: Rail Too Long
 
-- Rail is treated as over 8 hours in the demo context.
+- Request: `Ich muss Montag um 10 Uhr von Dortmund nach Wien.`
+- The Rail MCP Server returns no valid Dortmund -> Wien rail option under 8 hours.
 - Flight + Mobility are included.
 - `flight-1-with-transfers` is built.
 - `SmartContractClient` selects `flight-1-with-transfers`.

@@ -17,11 +17,11 @@ from agents.business_travel.agent import BusinessTravelAgent
 SCENARIOS = [
     (
         "Scenario A: Rail preferred",
-        "Ich muss Montag um 10 Uhr in München sein.",
+        "Ich muss Montag um 10 Uhr von Dortmund nach München.",
     ),
     (
         "Scenario B: Rail too long, flight with transfers evaluated",
-        "Ich muss Montag um 10 Uhr in München sein, but rail is over 8 hours.",
+        "Ich muss Montag um 10 Uhr von Dortmund nach Wien.",
     ),
 ]
 

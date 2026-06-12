@@ -17,7 +17,7 @@ mcp = FastMCP("flight", port=8005)
 # The final policy-based selection happens later in the SmartContractClient,
 # not in this MCP server.
 
-FLIGHT_OPTIONS = [
+FLIGHT_OPTIONS_DORTMUND_MUNICH = [
     {
         "offer_id": "flight-1",
         "mode": "flight",
@@ -44,6 +44,33 @@ FLIGHT_OPTIONS = [
     },
 ]
 
+FLIGHT_OPTIONS_DORTMUND_VIENNA = [
+    {
+        "offer_id": "flight-1",
+        "mode": "flight",
+        "provider": "FlightProviderAgent",
+        "departure_airport": "DUS",
+        "arrival_airport": "VIE",
+        "flight_price": 210,
+        "flight_duration_minutes": 95,
+        "travel_class": "economy",
+        "provider_reputation": 88,
+        "arrival_buffer_minutes": 70,
+    },
+    {
+        "offer_id": "flight-2",
+        "mode": "flight",
+        "provider": "FlightProviderAgent",
+        "departure_airport": "DUS",
+        "arrival_airport": "VIE",
+        "flight_price": 260,
+        "flight_duration_minutes": 90,
+        "travel_class": "business",
+        "provider_reputation": 90,
+        "arrival_buffer_minutes": 80,
+    },
+]
+
 
 @mcp.tool()
 def search_flight_options(origin: str, destination: str, appointment_time: str) -> list[dict]:
@@ -55,8 +82,15 @@ def search_flight_options(origin: str, destination: str, appointment_time: str) 
         appointment_time: Appointment time the traveler needs to arrive for.
     """
     # Version 1 keeps this deliberately simple: the input parameters are part
-    # of the tool interface, but the mock server always returns the same offers.
-    return FLIGHT_OPTIONS.copy()
+    # of the tool interface, and the mock server switches only between the
+    # two didactic demo routes.
+    origin_lower = origin.lower()
+    destination_lower = destination.lower()
+
+    if "dortmund" in origin_lower and ("wien" in destination_lower or "vienna" in destination_lower):
+        return FLIGHT_OPTIONS_DORTMUND_VIENNA.copy()
+
+    return FLIGHT_OPTIONS_DORTMUND_MUNICH.copy()
 
 
 if __name__ == "__main__":

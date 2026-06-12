@@ -5,7 +5,7 @@ This repository contains a small didactic prototype for controlled agent autonom
 Example user request:
 
 ```text
-Ich muss Montag um 10 Uhr in München sein.
+Ich muss Montag um 10 Uhr von Dortmund nach München.
 ```
 
 The system collects travel options, structures them, and delegates the final policy-compliant selection to a simulated smart contract client. The important point is that the final travel decision is not made by an LLM and not by an agent.
@@ -194,7 +194,7 @@ uv run python app/cmd/cmd.py --agent http://localhost:10000
 Then enter:
 
 ```text
-Ich muss Montag um 10 Uhr in München sein.
+Ich muss Montag um 10 Uhr von Dortmund nach München.
 ```
 
 ## Start Demo With PowerShell Script
@@ -234,14 +234,15 @@ The demo shows two scenarios:
 
 **Scenario A: Rail preferred**
 
+- The demo request is: `Ich muss Montag um 10 Uhr von Dortmund nach München.`
 - A valid rail option with `duration_minutes <= 480` exists.
 - Flight/Mobility enrichment is skipped.
 - The SmartContractClient selects `rail-1`.
 
 **Scenario B: Rail too long**
 
-- The demo message contains a marker such as `über 8 Stunden` or `long-rail`.
-- Rail options are treated as longer than 8 hours in the demo context.
+- The demo request is: `Ich muss Montag um 10 Uhr von Dortmund nach Wien.`
+- The Rail MCP Server returns no valid Dortmund -> Wien rail option under 8 hours.
 - The BusinessTravelAgent calls the Flight MCP Server and the Mobility MCP Server.
 - The first economy flight option is combined with airport transfers.
 - This creates `flight-1-with-transfers`.
@@ -259,8 +260,8 @@ uv run python scripts/verify_business_travel.py
 
 The script checks:
 
-- Scenario A: a valid rail option under 8 hours exists, so the SmartContractClient selects `rail-1`.
-- Scenario B: rail is treated as over 8 hours in the demo context, so Flight + Mobility are included and the SmartContractClient selects `flight-1-with-transfers`.
+- Scenario A: Dortmund -> München has a valid rail option under 8 hours, so the SmartContractClient selects `rail-1`.
+- Scenario B: Dortmund -> Wien has no valid rail option under 8 hours, so Flight + Mobility are included and the SmartContractClient selects `flight-1-with-transfers`.
 
 Expected output:
 

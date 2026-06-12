@@ -21,12 +21,12 @@ from agents.business_travel.demo import _start_missing_mcp_servers, _stop_starte
 SCENARIOS = [
     {
         "name": "Scenario A",
-        "query": "Ich muss Montag um 10 Uhr in Muenchen sein.",
+        "query": "Ich muss Montag um 10 Uhr von Dortmund nach Muenchen.",
         "expected_offer_id": "rail-1",
     },
     {
         "name": "Scenario B",
-        "query": "Ich muss Montag um 10 Uhr in Muenchen sein, but rail is over 8 hours.",
+        "query": "Ich muss Montag um 10 Uhr von Dortmund nach Wien.",
         "expected_offer_id": "flight-1-with-transfers",
     },
 ]

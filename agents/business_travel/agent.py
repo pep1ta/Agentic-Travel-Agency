@@ -128,48 +128,33 @@ class BusinessTravelAgent:
     # -----------------------------------------------------------------------
 
     def _read_request_defaults(self, query: str) -> dict:
-        """Interprets the user request with fixed version 1 defaults.
+        """Reads origin and destination with a small version 1 heuristic.
 
-        The query is accepted so this method can later be replaced with simple
-        parsing or LLM-assisted language understanding. For now, it deliberately
-        returns stable mock values.
+        This is deliberately not complex NLP. The user must provide both start
+        and destination, for example: "von Dortmund nach Muenchen".
         """
         return {
-            "origin": "Dortmund",
-            "destination": "München",
+            "origin": self._extract_origin(query),
+            "destination": self._extract_destination(query),
             "appointment_time": "Monday 10:00",
             "original_query": query,
-            "force_long_rail": self._is_long_rail_demo_request(query),
         }
 
-    def _is_long_rail_demo_request(self, query: str) -> bool:
-        """Detects the simple demo scenario where rail should be too long.
-
-        This is deliberately not complex NLP. It is only a small demo switch so
-        we can show the flight + mobility fallback without changing MCP mocks.
-        """
+    def _extract_origin(self, query: str) -> str | None:
+        """Extracts the origin with a simple demo heuristic."""
         query_lower = query.lower()
-        return (
-            "over 8 hours" in query_lower
-            or "ueber 8 stunden" in query_lower
-            or "über 8 stunden" in query_lower
-            or "long-rail" in query_lower
-        )
+        if "von dortmund" in query_lower:
+            return "Dortmund"
+        return None
 
-    def _make_rail_options_long_for_demo(self, rail_options: list[dict]) -> list[dict]:
-        """Returns copied rail offers where no rail option is under 8 hours.
-
-        This keeps the normal rail-1 smoke test intact. The override is only
-        used for the second demo scenario.
-        """
-        long_rail_options = []
-
-        for offer in rail_options:
-            copied_offer = offer.copy()
-            copied_offer["duration_minutes"] = max(copied_offer.get("duration_minutes", 0), 560)
-            long_rail_options.append(copied_offer)
-
-        return long_rail_options
+    def _extract_destination(self, query: str) -> str | None:
+        """Extracts the destination with a simple demo heuristic."""
+        query_lower = query.lower()
+        if "nach münchen" in query_lower or "nach muenchen" in query_lower:
+            return "München"
+        if "nach wien" in query_lower or "vienna" in query_lower:
+            return "Wien"
+        return None
 
     def _combine_flight_with_transfers(self, flight: dict, transfers: dict) -> dict:
         """Builds one policy-checkable offer from a flight and transfer data.
@@ -209,10 +194,6 @@ class BusinessTravelAgent:
             request["destination"],
             request["appointment_time"],
         )
-
-        if request.get("force_long_rail"):
-            logger.info("Long-rail demo scenario active: overriding rail durations above 8 hours")
-            rail_options = self._make_rail_options_long_for_demo(rail_options)
 
         valid_preferred_rail_exists = self._has_policy_relevant_rail_option(rail_options)
         logger.info(f"Valid rail option under 8 hours found: {valid_preferred_rail_exists}")
@@ -350,6 +331,14 @@ class BusinessTravelAgent:
         logger.info(f"BusinessTravelAgent received: {query} (context: {context_id})")
 
         request = self._read_request_defaults(query)
+        if not request["origin"] or not request["destination"]:
+            logger.info("BusinessTravelAgent needs both origin and destination")
+            return (
+                "Please provide both origin and destination, e.g. "
+                "'von Dortmund nach München'.",
+                False,
+            )
+
         offers = await self._build_offers(request)
 
         # Final policy selection happens here, in the simulated smart contract
