@@ -1,0 +1,26 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1-inspired",
+  "name": "RailProviderAgent",
+  "description": "Rail provider mock agent for business travel rail options.",
+  "image": "",
+  "capabilities": [
+    "rail"
+  ],
+  "services": [
+    {
+      "name": "MCP",
+      "endpoint": "mcp://localhost:8004",
+      "version": "0.3.0"
+    }
+  ],
+  "registrations": [
+    {
+      "agentId": null,
+      "agentRegistry": null
+    }
+  ],
+  "supportedTrust": [
+    "policy",
+    "reputation"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1-inspired",
+  "name": "Business Travel Agent",
+  "description": "Business travel planning agent for policy-governed travel options.",
+  "image": "",
+  "capabilities": [
+    "business_travel"
+  ],
+  "services": [
+    {
+      "name": "A2A",
+      "endpoint": "http://localhost:10004/.well-known/agent-card.json",
+      "version": "0.3.0"
+    }
+  ],
+  "registrations": [
+    {
+      "agentId": null,
+      "agentRegistry": null
+    }
+  ],
+  "supportedTrust": [
+    "policy",
+    "reputation"
+  ]
+}

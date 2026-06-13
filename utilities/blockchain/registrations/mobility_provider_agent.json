@@ -1,0 +1,26 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1-inspired",
+  "name": "MobilityProviderAgent",
+  "description": "Mobility provider mock agent for airport transfer information.",
+  "image": "",
+  "capabilities": [
+    "mobility"
+  ],
+  "services": [
+    {
+      "name": "MCP",
+      "endpoint": "mcp://localhost:8006",
+      "version": "0.3.0"
+    }
+  ],
+  "registrations": [
+    {
+      "agentId": null,
+      "agentRegistry": null
+    }
+  ],
+  "supportedTrust": [
+    "policy",
+    "reputation"
+  ]
+}
