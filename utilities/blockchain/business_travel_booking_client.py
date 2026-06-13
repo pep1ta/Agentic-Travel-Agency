@@ -115,8 +115,8 @@ def _hex_with_prefix(value: Any) -> str:
     return hex_value if hex_value.startswith("0x") else f"0x{hex_value}"
 
 
-def _build_booking_transaction(selected_offer: dict):
-    """Prepare Web3 objects and an unsigned createBooking transaction."""
+def _load_web3_context():
+    """Load Web3, account, contract and ABI for booking operations."""
     try:
         from eth_account import Account
         from web3 import Web3
@@ -142,8 +142,6 @@ def _build_booking_transaction(selected_offer: dict):
         )
 
     booking_address, policy_address, abi = _load_contract_data()
-    booking_values = _booking_values_from_offer(selected_offer)
-
     web3 = Web3(Web3.HTTPProvider(rpc_url))
 
     if not web3.is_connected():
@@ -158,6 +156,14 @@ def _build_booking_transaction(selected_offer: dict):
         address=Web3.to_checksum_address(booking_address),
         abi=abi,
     )
+
+    return web3, account, contract, booking_address, policy_address, abi
+
+
+def _build_booking_transaction(selected_offer: dict):
+    """Prepare Web3 objects and an unsigned createBooking transaction."""
+    web3, account, contract, _booking_address, policy_address, _abi = _load_web3_context()
+    booking_values = _booking_values_from_offer(selected_offer)
     nonce = web3.eth.get_transaction_count(account.address)
     tx = contract.functions.createBooking(
         booking_values["business_travel_agent_id"],
@@ -173,6 +179,67 @@ def _build_booking_transaction(selected_offer: dict):
     })
 
     return web3, account, contract, booking_values, tx
+
+
+def get_booking_id_from_transaction(transaction_hash: str) -> dict:
+    """Read a submitted booking transaction and extract BookingCreated data.
+
+    This function does not wait for mining. If the receipt is not available yet,
+    it returns status='pending'.
+    """
+    web3, _account, contract, _booking_address, _policy_address, _abi = _load_web3_context()
+    normalized_hash = _hex_with_prefix(transaction_hash)
+    try:
+        receipt = web3.eth.get_transaction_receipt(normalized_hash)
+    except Exception as exc:
+        if "not found" in str(exc).lower() or "notfound" in exc.__class__.__name__.lower():
+            return {
+                "status": "pending",
+                "transactionHash": normalized_hash,
+                "etherscanUrl": f"https://sepolia.etherscan.io/tx/{normalized_hash}",
+            }
+        raise
+
+    if receipt is None:
+        return {
+            "status": "pending",
+            "transactionHash": normalized_hash,
+            "etherscanUrl": f"https://sepolia.etherscan.io/tx/{normalized_hash}",
+        }
+
+    events = contract.events.BookingCreated().process_receipt(receipt)
+
+    if not events:
+        raise BookingClientError("BookingCreated event wurde nicht gefunden.")
+
+    booking_id = events[0]["args"]["bookingId"]
+
+    return {
+        "status": "confirmed",
+        "bookingId": int(booking_id),
+        "transactionHash": normalized_hash,
+        "etherscanUrl": f"https://sepolia.etherscan.io/tx/{normalized_hash}",
+    }
+
+
+def complete_booking(booking_id: int) -> dict:
+    """Send completeBooking(booking_id) and return the completion tx hash."""
+    web3, account, contract, _booking_address, _policy_address, _abi = _load_web3_context()
+    tx = contract.functions.completeBooking(booking_id).build_transaction({
+        "from": account.address,
+        "nonce": web3.eth.get_transaction_count(account.address),
+        "chainId": CHAIN_ID,
+    })
+    signed_tx = account.sign_transaction(tx)
+    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    transaction_hash = _hex_with_prefix(tx_hash)
+
+    return {
+        "bookingId": int(booking_id),
+        "transactionHash": transaction_hash,
+        "etherscanUrl": f"https://sepolia.etherscan.io/tx/{transaction_hash}",
+        "status": "submitted",
+    }
 
 
 def submit_booking_for_offer(selected_offer: dict) -> dict:
