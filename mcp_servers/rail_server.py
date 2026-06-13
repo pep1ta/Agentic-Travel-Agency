@@ -1,5 +1,7 @@
 # mcp_servers/rail_server.py
 
+import unicodedata
+
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("rail", port=8004)
@@ -104,6 +106,43 @@ RAIL_OPTIONS_DORTMUND_VIENNA = [
     },
 ]
 
+RAIL_OPTIONS_MUNSTER_MUNICH = [
+    {
+        "offer_id": "rail-muenster-1",
+        "mode": "rail",
+        "provider": "RailProviderAgent",
+        "origin": "Münster Hbf",
+        "destination": "München Hbf",
+        "total_price": 129,
+        "duration_minutes": 430,
+        "travel_class": "second_class",
+        "provider_reputation": 82,
+        "arrival_buffer_minutes": 70,
+        "transfers_included": True,
+        "changes": 1,
+    },
+    {
+        "offer_id": "rail-muenster-2",
+        "mode": "rail",
+        "provider": "RailProviderAgent",
+        "origin": "Münster Hbf",
+        "destination": "München Hbf",
+        "total_price": 99,
+        "duration_minutes": 590,
+        "travel_class": "second_class",
+        "provider_reputation": 82,
+        "arrival_buffer_minutes": 45,
+        "transfers_included": True,
+        "changes": 3,
+    },
+]
+
+
+def _normalize(text: str) -> str:
+    """Normalizes German umlauts enough for simple mock route matching."""
+    text = text.lower().replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
 
 @mcp.tool()
 def search_rail_options(origin: str, destination: str, appointment_time: str) -> list[dict]:
@@ -116,15 +155,18 @@ def search_rail_options(origin: str, destination: str, appointment_time: str) ->
     """
     # Version 1 keeps this deliberately simple: the input parameters are part
     # of the tool interface, and the mock server switches only between the
-    # two didactic demo routes.
-    origin_lower = origin.lower()
-    destination_lower = destination.lower()
+    # didactic demo routes.
+    origin_normalized = _normalize(origin)
+    destination_normalized = _normalize(destination)
 
-    if "dortmund" in origin_lower and ("münchen" in destination_lower or "muenchen" in destination_lower):
+    if "dortmund" in origin_normalized and "muenchen" in destination_normalized:
         return RAIL_OPTIONS_DORTMUND_MUNICH.copy()
 
-    if "dortmund" in origin_lower and ("wien" in destination_lower or "vienna" in destination_lower):
+    if "dortmund" in origin_normalized and ("wien" in destination_normalized or "vienna" in destination_normalized):
         return RAIL_OPTIONS_DORTMUND_VIENNA.copy()
+
+    if "muenster" in origin_normalized and "muenchen" in destination_normalized:
+        return RAIL_OPTIONS_MUNSTER_MUNICH.copy()
 
     return []
 

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import unicodedata
 import uuid
 from typing import Any
 
@@ -135,6 +136,36 @@ class OrchestratorAgent:
             "Always pick the right tool for the job and respond helpfully."
         )
 
+    def _normalize_text(self, text: str) -> str:
+        """Normalizes German umlauts for small routing heuristics."""
+        text = text.lower()
+        text = (
+            text.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
+            .replace("ã¼", "ue").replace("ã¤", "ae").replace("ã¶", "oe")
+        )
+        return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+    def _looks_like_business_travel_request(self, query: str) -> bool:
+        """Detects simple business travel requests before calling the LLM.
+
+        This keeps A2A multi-turn slot filling with the BusinessTravelAgent
+        reliable. The BusinessTravelAgent remains responsible for collecting
+        and structuring travel options.
+        """
+        query_normalized = self._normalize_text(query)
+        has_travel_time = "montag" in query_normalized or "10 uhr" in query_normalized
+        has_known_destination = (
+            "muenchen" in query_normalized
+            or "wien" in query_normalized
+            or "vienna" in query_normalized
+        )
+        has_route_word = (
+            " von " in f" {query_normalized} "
+            or " nach " in f" {query_normalized} "
+            or " in " in f" {query_normalized} "
+        )
+        return has_travel_time and has_known_destination and has_route_word
+
     # -----------------------------------------------------------------------
     # Tool implementations
     # -----------------------------------------------------------------------
@@ -199,6 +230,13 @@ class OrchestratorAgent:
             agent_name = self._active_agent[context_id]
             result = await self._delegate_task(agent_name, query, context_id)
             input_required = context_id in self._active_agent
+            return result, input_required
+
+        # Business travel requests are delegated deterministically so the
+        # BusinessTravelAgent can use A2A INPUT_REQUIRED for missing slots.
+        if self._looks_like_business_travel_request(query):
+            result = await self._delegate_task("Business Travel Agent", query, context_id)
+            input_required = bool(context_id and context_id in self._active_agent)
             return result, input_required
 
         messages = [

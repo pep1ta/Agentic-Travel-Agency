@@ -108,9 +108,6 @@ async def handle_non_streaming(client, text: str, task_id: str | None = None, co
             last_task = task
 
     if last_task:
-        print(f"DEBUG last_task context_id: {getattr(last_task, 'context_id', None)}")
-        print(f"DEBUG last_task state: {getattr(last_task.status, 'state', None)}")
-        
         if getattr(last_task.status, "state", None) == TaskState.TASK_STATE_INPUT_REQUIRED: # Check if the last task indicates that the agent is waiting for more input from the user
             follow_up = input("Agent is waiting for input. Please enter your response: ")
             await handle_non_streaming(client, follow_up, task_id=getattr(task, "id", None), context_id=getattr(task, "context_id", None)) # Recursively call the non-streaming handler with the follow-up message

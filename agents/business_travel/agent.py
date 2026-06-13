@@ -3,6 +3,7 @@
 import ast
 import json
 import logging
+import unicodedata
 from typing import Any
 
 from mcp import ClientSession
@@ -15,6 +16,17 @@ logger = logging.getLogger(__name__)
 RAIL_MCP_URL = "http://localhost:8004/sse"
 FLIGHT_MCP_URL = "http://localhost:8005/sse"
 MOBILITY_MCP_URL = "http://localhost:8006/sse"
+
+
+class TravelPlanningState:
+    """Tracks the small multi-turn slot-filling state per A2A context."""
+
+    def __init__(self):
+        self.origin: str | None = None
+        self.destination: str | None = None
+        self.appointment_time: str = "Monday 10:00"
+        self.awaiting_origin: bool = False
+        self.awaiting_destination: bool = False
 
 
 class BusinessTravelAgent:
@@ -36,6 +48,13 @@ class BusinessTravelAgent:
     def __init__(self):
         self._smart_contract = SmartContractClient()
         self._last_enrichment_note: str | None = None
+        self._sessions: dict[str, TravelPlanningState] = {}
+
+    def _get_state(self, context_id: str) -> TravelPlanningState:
+        """Returns existing state for a context or creates a new one."""
+        if context_id not in self._sessions:
+            self._sessions[context_id] = TravelPlanningState()
+        return self._sessions[context_id]
 
     # -----------------------------------------------------------------------
     # MCP calls
@@ -127,32 +146,88 @@ class BusinessTravelAgent:
     # Travel option preparation
     # -----------------------------------------------------------------------
 
-    def _read_request_defaults(self, query: str) -> dict:
+    def _normalize_text(self, text: str) -> str:
+        """Normalizes German umlauts enough for the simple demo heuristics."""
+        text = text.lower()
+        # The second group handles occasional Windows console mojibake such as
+        # "MÃ¼nchen" while keeping the heuristic small and explicit.
+        text = (
+            text.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
+            .replace("ã¼", "ue").replace("ã¤", "ae").replace("ã¶", "oe")
+        )
+        return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+    def _parse_query_into_state(self, query: str, state: TravelPlanningState) -> None:
         """Reads origin and destination with a small version 1 heuristic.
 
         This is deliberately not complex NLP. The user must provide both start
         and destination, for example: "von Dortmund nach Muenchen".
         """
+        origin = self._extract_origin(query)
+        destination = self._extract_destination(query)
+
+        if origin:
+            state.origin = origin
+            state.awaiting_origin = False
+        if destination:
+            state.destination = destination
+            state.awaiting_destination = False
+
+        # If the previous turn asked for the origin, a short answer like
+        # "Muenster" should fill the missing origin instead of starting over.
+        if state.awaiting_origin and not origin:
+            short_origin = self._extract_city_answer(query)
+            if short_origin:
+                state.origin = short_origin
+                state.awaiting_origin = False
+
+        if state.awaiting_destination and not destination:
+            short_destination = self._extract_city_answer(query)
+            if short_destination:
+                state.destination = short_destination
+                state.awaiting_destination = False
+
+    def _build_request_from_state(self, state: TravelPlanningState) -> dict:
+        """Builds the simple request dictionary used by the MCP calls."""
         return {
-            "origin": self._extract_origin(query),
-            "destination": self._extract_destination(query),
-            "appointment_time": "Monday 10:00",
-            "original_query": query,
+            "origin": state.origin,
+            "destination": state.destination,
+            "appointment_time": state.appointment_time,
         }
 
     def _extract_origin(self, query: str) -> str | None:
         """Extracts the origin with a simple demo heuristic."""
-        query_lower = query.lower()
-        if "von dortmund" in query_lower:
+        query_normalized = self._normalize_text(query)
+        if "von dortmund" in query_normalized:
             return "Dortmund"
+        if "von muenster" in query_normalized or "von m?nster" in query_normalized:
+            return "Münster"
         return None
 
     def _extract_destination(self, query: str) -> str | None:
         """Extracts the destination with a simple demo heuristic."""
-        query_lower = query.lower()
-        if "nach münchen" in query_lower or "nach muenchen" in query_lower:
+        query_normalized = self._normalize_text(query)
+        if (
+            "nach muenchen" in query_normalized
+            or "in muenchen" in query_normalized
+            or "nach m?nchen" in query_normalized
+            or "in m?nchen" in query_normalized
+        ):
             return "München"
-        if "nach wien" in query_lower or "vienna" in query_lower:
+        if "nach wien" in query_normalized or "in wien" in query_normalized or "vienna" in query_normalized:
+            return "Wien"
+        return None
+
+    def _extract_city_answer(self, query: str) -> str | None:
+        """Extracts a city from a short follow-up answer."""
+        query_normalized = self._normalize_text(query).strip(" .,!?:;")
+        if query_normalized == "dortmund":
+            return "Dortmund"
+        if query_normalized in ["muenster", "m?nster"]:
+            return "Münster"
+        if query_normalized in ["muenchen", "m?nchen"]:
+            return "München"
+        if query_normalized in ["wien", "vienna"]:
             return "Wien"
         return None
 
@@ -330,15 +405,27 @@ class BusinessTravelAgent:
         """
         logger.info(f"BusinessTravelAgent received: {query} (context: {context_id})")
 
-        request = self._read_request_defaults(query)
-        if not request["origin"] or not request["destination"]:
+        context_key = context_id or "default"
+        state = self._get_state(context_key)
+        self._parse_query_into_state(query, state)
+
+        if not state.origin and state.destination:
+            state.awaiting_origin = True
+            return "Bitte teilen Sie mir den Startpunkt mit.", True
+
+        if state.origin and not state.destination:
+            state.awaiting_destination = True
+            return "Bitte teilen Sie mir das Ziel mit.", True
+
+        if not state.origin or not state.destination:
             logger.info("BusinessTravelAgent needs both origin and destination")
             return (
                 "Please provide both origin and destination, e.g. "
-                "'von Dortmund nach München'.",
+                "'von Dortmund nach Muenchen'.",
                 False,
             )
 
+        request = self._build_request_from_state(state)
         offers = await self._build_offers(request)
 
         # Final policy selection happens here, in the simulated smart contract
@@ -352,4 +439,5 @@ class BusinessTravelAgent:
 
         response = self._format_decision(decision)
         logger.info("BusinessTravelAgent returning final text response")
+        del self._sessions[context_key]
         return response, False
