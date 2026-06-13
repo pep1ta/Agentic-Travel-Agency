@@ -38,6 +38,22 @@ def _require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def _states_booking_requires_approval(response_text: str) -> bool:
+    """Accepts the old technical and the new localized approval wording."""
+    return (
+        "booking_requires_approval = True" in response_text
+        or "Eine Buchung ist genehmigungspflichtig" in response_text
+    )
+
+
+def _states_no_booking_or_payment_executed(response_text: str) -> bool:
+    """Accepts English and German wording for the no-auto-booking guarantee."""
+    return (
+        "No booking or payment has been executed." in response_text
+        or "Es wurde noch keine Buchung und keine Zahlung ausgeführt." in response_text
+    )
+
+
 async def _run_scenario(agent: BusinessTravelAgent, scenario: dict) -> dict:
     """Runs one scenario through the public BusinessTravelAgent invoke path."""
     response_text, input_required = await agent.invoke(
@@ -69,11 +85,11 @@ async def main() -> None:
                 f"{scenario['name']} did not select {scenario['expected_offer_id']}.",
             )
             _require(
-                "booking_requires_approval = True" in response_text,
+                _states_booking_requires_approval(response_text),
                 f"{scenario['name']} did not require booking approval.",
             )
             _require(
-                "No booking or payment has been executed." in response_text,
+                _states_no_booking_or_payment_executed(response_text),
                 f"{scenario['name']} does not clearly state that booking/payment was not executed.",
             )
 
