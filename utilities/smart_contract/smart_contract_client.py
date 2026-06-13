@@ -46,6 +46,7 @@ class SmartContractClient:
         valid_rail_offers = []
         valid_flight_offers = []
         rejected_offers = []
+        considered_offers = list(offers)
 
         for offer in offers:
             if offer.get("mode") == "rail":
@@ -74,15 +75,15 @@ class SmartContractClient:
 
         if valid_preferred_rail:
             selected_offer = self._cheapest(valid_preferred_rail)
-            for offer in valid_flight_offers:
-                rejected_offers.append(self._rejection(
-                    offer,
-                    ["Flight cannot win because a valid rail option under 8 hours exists."],
-                ))
+            valid_offers = valid_rail_offers + valid_flight_offers
+            valid_alternatives = self._valid_alternatives(valid_offers, selected_offer)
             return {
                 "selected_offer": selected_offer,
                 "valid_offers": valid_preferred_rail,
+                "valid_alternatives": valid_alternatives,
                 "rejected_offers": rejected_offers,
+                "rejected_options": rejected_offers,
+                "considered_offers": considered_offers,
                 "decision_reason": (
                     "A policy-compliant rail offer under 8 hours exists. "
                     "Rail is preferred, so the cheapest valid rail offer wins."
@@ -92,10 +93,15 @@ class SmartContractClient:
 
         if valid_flight_offers:
             selected_offer = self._cheapest(valid_flight_offers)
+            valid_offers = valid_rail_offers + valid_flight_offers
+            valid_alternatives = self._valid_alternatives(valid_offers, selected_offer)
             return {
                 "selected_offer": selected_offer,
                 "valid_offers": valid_flight_offers,
+                "valid_alternatives": valid_alternatives,
                 "rejected_offers": rejected_offers,
+                "rejected_options": rejected_offers,
+                "considered_offers": considered_offers,
                 "decision_reason": (
                     "No policy-compliant rail offer under 8 hours exists. "
                     "Flight is allowed, so the cheapest valid flight offer wins."
@@ -106,7 +112,10 @@ class SmartContractClient:
         return {
             "selected_offer": None,
             "valid_offers": [],
+            "valid_alternatives": [],
             "rejected_offers": rejected_offers,
+            "rejected_options": rejected_offers,
+            "considered_offers": considered_offers,
             "decision_reason": "No policy-compliant travel offer was found.",
             "booking_requires_approval": self._policy["booking_requires_approval"],
         }
@@ -150,6 +159,42 @@ class SmartContractClient:
     def _cheapest(self, offers: list[dict]) -> dict:
         """Returns the cheapest offer. offer_id breaks ties deterministically."""
         return min(offers, key=lambda offer: (offer.get("total_price", 0), offer.get("offer_id", "")))
+
+    def _valid_alternatives(self, valid_offers: list[dict], selected_offer: dict) -> list[dict]:
+        """Returns valid but non-selected offers with a simple explanation."""
+        selected_offer_id = selected_offer.get("offer_id")
+        alternatives = []
+
+        for offer in valid_offers:
+            if offer.get("offer_id") == selected_offer_id:
+                continue
+
+            alternative = offer.copy()
+            alternative["not_selected_reasons"] = [
+                self._alternative_reason(offer, selected_offer)
+            ]
+            alternatives.append(alternative)
+
+        return alternatives
+
+    def _alternative_reason(self, offer: dict, selected_offer: dict) -> str:
+        """Explains why a valid offer did not win."""
+        selected_mode = selected_offer.get("mode")
+
+        if offer.get("mode") == "rail" and offer.get("duration_minutes", 0) > self._policy["rail_preferred_max_duration_minutes"]:
+            return "Rail is valid but not under the 8-hour rail preference threshold."
+
+        if offer.get("total_price", 0) > selected_offer.get("total_price", 0):
+            if selected_mode == "rail":
+                return "More expensive than the selected valid rail offer."
+            if selected_mode == "flight_with_transfers":
+                return "More expensive than the selected valid flight offer."
+            return "More expensive than the selected valid offer."
+
+        if selected_mode == "rail" and offer.get("mode") == "flight_with_transfers":
+            return "Rail is preferred because a valid rail option under 8 hours exists."
+
+        return "Not the cheapest valid offer in the allowed policy category."
 
     def _rejection(self, offer: dict, reasons: list[str]) -> dict:
         """Builds a small rejection record for transparent policy explanations."""
