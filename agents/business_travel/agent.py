@@ -418,6 +418,8 @@ class BusinessTravelAgent:
 
     def _format_booking_result(self, booking_result: dict) -> str:
         """Formats the Sepolia booking/payment simulation result."""
+        provider_booking = booking_result.get("providerBooking", {})
+
         return (
             "Sepolia booking/payment simulation submitted\n"
             "============================================\n"
@@ -428,10 +430,57 @@ class BusinessTravelAgent:
             f"transactionHash: {booking_result['transactionHash']}\n"
             f"Etherscan: {booking_result['etherscanUrl']}\n"
             "\n"
+            "Provider booking simulation:\n"
+            f"provider: {provider_booking.get('provider', 'not available')}\n"
+            f"providerBookingReference: {provider_booking.get('providerBookingReference', 'not available')}\n"
+            f"providerBookingStatus: {provider_booking.get('status', 'not available')}\n"
+            f"providerMessage: {provider_booking.get('message', 'Provider booking simulation not available.')}\n"
+            "\n"
             "The Booking-/Payment-Simulation was submitted as a Sepolia transaction. "
             "The final confirmation can be checked later via Etherscan or a separate "
-            "check script. No real travel booking was executed."
+            "check script. The provider booking is simulated only. No real travel "
+            "booking was executed."
         )
+
+    async def _simulate_provider_booking(self, selected_offer: dict) -> dict:
+        """Calls the matching provider MCP booking tool.
+
+        This is only a provider-side simulation. It does not create a real rail
+        or flight booking. If the MCP call fails, the Sepolia submission can
+        still be reported to the user.
+        """
+        selected_offer_id = selected_offer.get("id") or selected_offer.get("offer_id")
+        mode = selected_offer.get("mode")
+
+        try:
+            if mode == "rail":
+                return await self._call_mcp_tool(
+                    RAIL_MCP_URL,
+                    "book_rail_offer",
+                    {"offer_id": selected_offer_id},
+                )
+
+            if mode == "flight_with_transfers":
+                return await self._call_mcp_tool(
+                    FLIGHT_MCP_URL,
+                    "book_flight_offer",
+                    {"offer_id": selected_offer_id},
+                )
+
+            return {
+                "offerId": selected_offer_id,
+                "provider": "not available",
+                "status": "not_available",
+                "message": f"No provider booking simulation for mode: {mode}",
+            }
+        except Exception as exc:
+            logger.error(f"Provider booking simulation failed: {exc}")
+            return {
+                "offerId": selected_offer_id,
+                "provider": "not available",
+                "status": "failed",
+                "message": f"Provider booking simulation failed: {exc}",
+            }
 
     # -----------------------------------------------------------------------
     # Main invoke
@@ -465,6 +514,9 @@ class BusinessTravelAgent:
                     False,
                 )
 
+            booking_result["providerBooking"] = await self._simulate_provider_booking(
+                state.selected_offer
+            )
             return self._format_booking_result(booking_result), False
 
         self._parse_query_into_state(query, state)
