@@ -10,7 +10,12 @@ Ich muss Montag um 10 Uhr von Dortmund nach München.
 
 The system collects travel options, structures them, and delegates the final policy-compliant selection to a simulated smart contract client. The important point is that the final travel decision is not made by an LLM and not by an agent.
 
-Detailed architecture documentation: `docs/architecture.md`
+## Documentation
+
+- Detailed architecture documentation: [`docs/architecture.md`](docs/architecture.md)
+- Architecture diagram: [`docs/architecture_diagram.md`](docs/architecture_diagram.md)
+- Demo results: [`docs/demo_results.md`](docs/demo_results.md)
+- Thesis mapping: [`docs/thesis_mapping.md`](docs/thesis_mapping.md)
 
 ## Goal
 
