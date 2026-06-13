@@ -4,6 +4,8 @@ import unicodedata
 
 from mcp.server.fastmcp import FastMCP
 
+from utilities.travel_apis.rail_api_adapter import search_rail_api_options
+
 mcp = FastMCP("rail", port=8004)
 
 # ---------------------------------------------------------------------------
@@ -156,6 +158,11 @@ KNOWN_RAIL_OFFER_IDS = {
 }
 
 
+def _with_mock_source(options: list[dict]) -> list[dict]:
+    """Returns shallow copies marked as mock offers."""
+    return [{**offer, "source": "mock"} for offer in options]
+
+
 def _normalize(text: str) -> str:
     """Normalizes German umlauts enough for simple mock route matching."""
     text = text.lower().replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
@@ -164,13 +171,19 @@ def _normalize(text: str) -> str:
 
 @mcp.tool()
 def search_rail_options(origin: str, destination: str, appointment_time: str) -> list[dict]:
-    """Returns mock rail options for a business travel request.
+    """Returns rail options for a business travel request.
 
     Args:
         origin: Start station or city from the user request.
         destination: Destination station or city from the user request.
         appointment_time: Appointment time the traveler needs to arrive for.
     """
+    # Optional external API path. If disabled, broken, or empty, fall back to
+    # the didactic mock offers below.
+    api_options = search_rail_api_options(origin, destination, appointment_time)
+    if api_options:
+        return api_options
+
     # Version 1 keeps this deliberately simple: the input parameters are part
     # of the tool interface, and the mock server switches only between the
     # didactic demo routes.
@@ -178,13 +191,13 @@ def search_rail_options(origin: str, destination: str, appointment_time: str) ->
     destination_normalized = _normalize(destination)
 
     if "dortmund" in origin_normalized and "muenchen" in destination_normalized:
-        return RAIL_OPTIONS_DORTMUND_MUNICH.copy()
+        return _with_mock_source(RAIL_OPTIONS_DORTMUND_MUNICH)
 
     if "dortmund" in origin_normalized and ("wien" in destination_normalized or "vienna" in destination_normalized):
-        return RAIL_OPTIONS_DORTMUND_VIENNA.copy()
+        return _with_mock_source(RAIL_OPTIONS_DORTMUND_VIENNA)
 
     if "muenster" in origin_normalized and "muenchen" in destination_normalized:
-        return RAIL_OPTIONS_MUNSTER_MUNICH.copy()
+        return _with_mock_source(RAIL_OPTIONS_MUNSTER_MUNICH)
 
     return []
 
