@@ -9,6 +9,10 @@ from typing import Any
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
+from utilities.blockchain.business_travel_booking_client import (
+    BookingClientError,
+    submit_booking_for_offer,
+)
 from utilities.smart_contract.smart_contract_client import SmartContractClient
 
 logger = logging.getLogger(__name__)
@@ -27,6 +31,7 @@ class TravelPlanningState:
         self.appointment_time: str = "Monday 10:00"
         self.awaiting_origin: bool = False
         self.awaiting_destination: bool = False
+        self.selected_offer: dict | None = None
 
 
 class BusinessTravelAgent:
@@ -231,6 +236,24 @@ class BusinessTravelAgent:
             return "Wien"
         return None
 
+    def _looks_like_booking_intent(self, query: str) -> bool:
+        """Detects a small set of explicit booking intents.
+
+        This is deliberately simple. Booking is only attempted after the user
+        clearly asks for it and a policy-selected offer exists in the context.
+        """
+        query_normalized = self._normalize_text(query).strip(" .,!?:;")
+        booking_phrases = [
+            "ich moechte buchen",
+            "ich mochte buchen",
+            "bitte buchen",
+            "buchen",
+            "option buchen",
+            "i want to book",
+            "book it",
+        ]
+        return query_normalized in booking_phrases
+
     def _combine_flight_with_transfers(self, flight: dict, transfers: dict) -> dict:
         """Builds one policy-checkable offer from a flight and transfer data.
 
@@ -393,6 +416,23 @@ class BusinessTravelAgent:
             "No booking or payment has been executed."
         )
 
+    def _format_booking_result(self, booking_result: dict) -> str:
+        """Formats the Sepolia booking/payment simulation result."""
+        return (
+            "Sepolia booking/payment simulation submitted\n"
+            "============================================\n"
+            f"selectedOfferId: {booking_result['selectedOfferId']}\n"
+            f"providerAgentId: {booking_result['providerAgentId']}\n"
+            f"amountEth: {booking_result['amountEth']}\n"
+            f"status: {booking_result['status']}\n"
+            f"transactionHash: {booking_result['transactionHash']}\n"
+            f"Etherscan: {booking_result['etherscanUrl']}\n"
+            "\n"
+            "The Booking-/Payment-Simulation was submitted as a Sepolia transaction. "
+            "The final confirmation can be checked later via Etherscan or a separate "
+            "check script. No real travel booking was executed."
+        )
+
     # -----------------------------------------------------------------------
     # Main invoke
     # -----------------------------------------------------------------------
@@ -407,6 +447,26 @@ class BusinessTravelAgent:
 
         context_key = context_id or "default"
         state = self._get_state(context_key)
+
+        if self._looks_like_booking_intent(query):
+            if not state.selected_offer:
+                return (
+                    "Bitte planen Sie zuerst eine Reise, damit eine "
+                    "policy-konforme Option ausgewählt werden kann.",
+                    False,
+                )
+
+            try:
+                booking_result = submit_booking_for_offer(state.selected_offer)
+            except BookingClientError as exc:
+                return (
+                    f"{exc}\n"
+                    "Es wurde keine Sepolia Booking-/Payment-Simulation erstellt.",
+                    False,
+                )
+
+            return self._format_booking_result(booking_result), False
+
         self._parse_query_into_state(query, state)
 
         if not state.origin and state.destination:
@@ -437,7 +497,11 @@ class BusinessTravelAgent:
         selected_offer_id = selected_offer.get("offer_id") if selected_offer else None
         logger.info(f"Selected offer_id from SmartContractClient: {selected_offer_id}")
 
+        # Keep the policy-selected offer in the A2A context. If the user later
+        # explicitly asks to book, this exact offer is used for the Sepolia
+        # booking/payment simulation. The agent still does not choose the offer.
+        state.selected_offer = selected_offer
+
         response = self._format_decision(decision)
         logger.info("BusinessTravelAgent returning final text response")
-        del self._sessions[context_key]
         return response, False
