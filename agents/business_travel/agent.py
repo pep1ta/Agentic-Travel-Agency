@@ -267,6 +267,7 @@ class BusinessTravelAgent:
             "offer_id": f"{flight['offer_id']}-with-transfers",
             "mode": "flight_with_transfers",
             "provider": flight["provider"],
+            "carrier": flight.get("carrier"),
             "total_price": flight["flight_price"] + transfers.get("total_transfer_price", 0),
             "duration_minutes": (
                 flight["flight_duration_minutes"]
@@ -370,9 +371,16 @@ class BusinessTravelAgent:
         if not offer:
             return "No offer selected."
 
+        operator_or_carrier = ""
+        if offer.get("operator"):
+            operator_or_carrier = f"  Operator: {offer['operator']}\n"
+        elif offer.get("carrier"):
+            operator_or_carrier = f"  Carrier: {offer['carrier']}\n"
+
         return (
             f"{offer['offer_id']} ({offer['mode']})\n"
             f"  Provider: {offer['provider']}\n"
+            f"{operator_or_carrier}"
             f"  Price: {offer['total_price']}\n"
             f"  Duration: {offer['duration_minutes']} minutes\n"
             f"  Class: {offer['travel_class']}\n"
