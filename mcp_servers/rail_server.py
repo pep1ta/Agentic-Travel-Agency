@@ -4,7 +4,6 @@ import unicodedata
 
 from mcp.server.fastmcp import FastMCP
 
-from utilities.travel_apis.rail_api_adapter import search_rail_api_options
 
 mcp = FastMCP("rail", port=8004)
 
@@ -178,12 +177,6 @@ def search_rail_options(origin: str, destination: str, appointment_time: str) ->
         destination: Destination station or city from the user request.
         appointment_time: Appointment time the traveler needs to arrive for.
     """
-    # Optional external API path. If disabled, broken, or empty, fall back to
-    # the didactic mock offers below.
-    api_options = search_rail_api_options(origin, destination, appointment_time)
-    if api_options:
-        return api_options
-
     # Version 1 keeps this deliberately simple: the input parameters are part
     # of the tool interface, and the mock server switches only between the
     # didactic demo routes.
