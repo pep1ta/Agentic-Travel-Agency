@@ -15,8 +15,8 @@
   ],
   "registrations": [
     {
-      "agentId": null,
-      "agentRegistry": null
+      "agentId": 4,
+      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292"
     }
   ],
   "supportedTrust": [
