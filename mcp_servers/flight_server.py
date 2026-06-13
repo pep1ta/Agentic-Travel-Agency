@@ -69,7 +69,7 @@ FLIGHT_OPTIONS_DORTMUND_VIENNA = [
         "arrival_airport": "VIE",
         "flight_price": 260,
         "flight_duration_minutes": 90,
-        "travel_class": "business",
+        "travel_class": "economy",
         "provider_reputation": 90,
         "arrival_buffer_minutes": 80,
     },

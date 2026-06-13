@@ -32,6 +32,7 @@ class TravelPlanningState:
         self.awaiting_origin: bool = False
         self.awaiting_destination: bool = False
         self.selected_offer: dict | None = None
+        self.language: str = "en"
 
 
 class BusinessTravelAgent:
@@ -236,6 +237,28 @@ class BusinessTravelAgent:
             return "Wien"
         return None
 
+    def _detect_language(self, query: str) -> str:
+        """Small language heuristic for the demo response text."""
+        query_normalized = self._normalize_text(query)
+        german_markers = [
+            "ich",
+            "muss",
+            "von",
+            "nach",
+            "buchen",
+            "montag",
+            "dienstag",
+            "uhr",
+            "bitte",
+            "moechte",
+            "mochte",
+        ]
+
+        if any(marker in f" {query_normalized} " for marker in german_markers):
+            return "de"
+
+        return "en"
+
     def _looks_like_booking_intent(self, query: str) -> bool:
         """Detects a small set of explicit booking intents.
 
@@ -320,15 +343,20 @@ class BusinessTravelAgent:
         ]
         logger.info(f"Economy flight offers considered for transfer enrichment: {len(economy_flights)}")
 
-        # Version 1 keeps the fallback simple: if rail cannot win by policy,
-        # enrich only the first economy flight with transfers.
-        for flight in economy_flights[:1]:
+        # Version 1 keeps this simple: if rail cannot win by policy, enrich up
+        # to two economy flights. We fetch transfers once for the route and
+        # reuse the mock transfer data for comparable flight offers.
+        transfers = None
+        if economy_flights:
+            first_flight = economy_flights[0]
             transfers = await self._get_airport_transfers(
                 request["origin"],
                 request["destination"],
-                flight["departure_airport"],
-                flight["arrival_airport"],
+                first_flight["departure_airport"],
+                first_flight["arrival_airport"],
             )
+
+        for flight in economy_flights[:2]:
             combined_flights.append(self._combine_flight_with_transfers(flight, transfers))
 
         if combined_flights:
@@ -366,19 +394,40 @@ class BusinessTravelAgent:
     # Response formatting
     # -----------------------------------------------------------------------
 
-    def _format_offer(self, offer: dict | None) -> str:
+    def _format_offer(self, offer: dict | None, language: str = "en") -> str:
         """Formats one offer for a human-readable response."""
         if not offer:
-            return "No offer selected."
+            return "Keine Option ausgewählt." if language == "de" else "No offer selected."
+
+        mode_label = offer["mode"]
+        if language == "de":
+            if offer["mode"] == "rail":
+                mode_label = "Bahn"
+            elif offer["mode"] == "flight_with_transfers":
+                mode_label = "Flug mit Transfers"
 
         operator_or_carrier = ""
         if offer.get("operator"):
-            operator_or_carrier = f"  Operator: {offer['operator']}\n"
+            label = "Betreiber" if language == "de" else "Operator"
+            operator_or_carrier = f"  {label}: {offer['operator']}\n"
         elif offer.get("carrier"):
-            operator_or_carrier = f"  Carrier: {offer['carrier']}\n"
+            label = "Airline" if language == "de" else "Carrier"
+            operator_or_carrier = f"  {label}: {offer['carrier']}\n"
+
+        if language == "de":
+            return (
+                f"{offer['offer_id']} ({mode_label})\n"
+                f"  Technischer Provider: {offer['provider']}\n"
+                f"{operator_or_carrier}"
+                f"  Preis: {offer['total_price']}\n"
+                f"  Dauer: {offer['duration_minutes']} Minuten\n"
+                f"  Klasse: {offer['travel_class']}\n"
+                f"  Reputation: {offer['provider_reputation']}\n"
+                f"  Ankunftspuffer: {offer['arrival_buffer_minutes']} Minuten"
+            )
 
         return (
-            f"{offer['offer_id']} ({offer['mode']})\n"
+            f"{offer['offer_id']} ({mode_label})\n"
             f"  Provider: {offer['provider']}\n"
             f"{operator_or_carrier}"
             f"  Price: {offer['total_price']}\n"
@@ -388,45 +437,206 @@ class BusinessTravelAgent:
             f"  Arrival buffer: {offer['arrival_buffer_minutes']} minutes"
         )
 
-    def _format_rejections(self, rejected_offers: list[dict]) -> str:
+    def _translate_reason(self, reason: str, language: str) -> str:
+        """Translates the small set of policy reasons used in the demo."""
+        if language != "de":
+            return reason
+
+        translations = {
+            "Rail offer must have mode == 'rail'.": "Bahnangebot muss mode == 'rail' haben.",
+            "Rail offer must be second class.": "Bahnangebot muss zweite Klasse sein.",
+            "Rail offer exceeds the maximum budget.": "Bahnangebot überschreitet das Budget.",
+            "Rail provider reputation is too low.": "Provider-Reputation des Bahnangebots ist zu niedrig.",
+            "Rail arrival buffer is too short.": "Ankunftspuffer des Bahnangebots ist zu kurz.",
+            "Flight offer must have mode == 'flight_with_transfers'.": "Flugangebot muss mode == 'flight_with_transfers' haben.",
+            "Flight offer must be economy class.": "Flugangebot muss Economy sein.",
+            "Flight offer must include transfers to and from the airport.": "Flugangebot muss Transfers zum und vom Flughafen enthalten.",
+            "Flight offer exceeds the maximum budget.": "Flugangebot überschreitet das Budget.",
+            "Flight provider reputation is too low.": "Provider-Reputation des Flugangebots ist zu niedrig.",
+            "Flight arrival buffer is too short.": "Ankunftspuffer des Flugangebots ist zu kurz.",
+            "Flight cannot win because a valid rail option under 8 hours exists.": "Flugangebot kann nicht gewinnen, weil eine gültige Bahnoption unter 8 Stunden existiert.",
+        }
+
+        return translations.get(reason, reason)
+
+    def _format_rejections(self, rejected_offers: list[dict], language: str = "en") -> str:
         """Formats rejected offers and their policy reasons."""
         if not rejected_offers:
-            return "No rejected offers."
+            return "Keine." if language == "de" else "No rejected offers."
 
         lines = []
         for rejected in rejected_offers:
             lines.append(f"- {rejected['offer_id']}:")
             for reason in rejected["reasons"]:
-                lines.append(f"  - {reason}")
+                lines.append(f"  - {self._translate_reason(reason, language)}")
         return "\n".join(lines)
 
-    def _format_decision(self, decision: dict) -> str:
+    def _format_valid_alternatives(self, decision: dict, language: str = "en") -> str:
+        """Formats valid offers that were considered but not selected."""
+        selected_offer = decision.get("selected_offer")
+        selected_offer_id = selected_offer.get("offer_id") if selected_offer else None
+        alternatives = [
+            offer for offer in decision.get("valid_offers", [])
+            if offer.get("offer_id") != selected_offer_id
+        ]
+
+        if not alternatives:
+            return "Keine." if language == "de" else "None."
+
+        lines = []
+        selected_price = selected_offer.get("total_price") if selected_offer else None
+
+        for offer in alternatives:
+            lines.append(f"- {self._format_offer(offer, language)}")
+            if selected_price is not None and offer.get("total_price", 0) > selected_price:
+                if language == "de":
+                    option_label = "Flugoption" if offer.get("mode") == "flight_with_transfers" else "Option"
+                    lines.append("  Grund nicht gewählt:")
+                    lines.append(f"    - Teurer als die ausgewählte gültige {option_label}.")
+                else:
+                    lines.append("  Reason not selected:")
+                    lines.append("    - More expensive than the selected valid option.")
+            else:
+                if language == "de":
+                    lines.append("  Grund nicht gewählt:")
+                    lines.append("    - Nicht die günstigste gültige Option.")
+                else:
+                    lines.append("  Reason not selected:")
+                    lines.append("    - Not the cheapest valid option.")
+
+        return "\n".join(lines)
+
+    def _format_decision_reason(self, reason: str, language: str) -> str:
+        if language != "de":
+            return reason
+
+        translations = {
+            (
+                "A policy-compliant rail offer under 8 hours exists. "
+                "Rail is preferred, so the cheapest valid rail offer wins."
+            ): (
+                "Es gibt ein policy-konformes Bahnangebot unter 8 Stunden. "
+                "Bahn wird bevorzugt, deshalb gewinnt das günstigste gültige Bahnangebot."
+            ),
+            (
+                "No policy-compliant rail offer under 8 hours exists. "
+                "Flight is allowed, so the cheapest valid flight offer wins."
+            ): (
+                "Es gibt kein policy-konformes Bahnangebot unter 8 Stunden. "
+                "Deshalb sind Flugoptionen erlaubt. Die günstigste gültige Flugoption gewinnt."
+            ),
+            "No policy-compliant travel offer was found.": (
+                "Es wurde keine policy-konforme Reiseoption gefunden."
+            ),
+        }
+
+        return translations.get(reason, reason)
+
+    def _format_enrichment_note(self, language: str) -> str:
+        note = self._last_enrichment_note
+
+        if language != "de":
+            return note or "Flight and transfer enrichment was performed as needed."
+
+        if note == (
+            "Flight enrichment skipped because a valid rail option under 8 hours "
+            "exists and rail is preferred by policy."
+        ):
+            return (
+                "Flug-/Transferanreicherung wurde übersprungen, weil eine gültige "
+                "Bahnoption unter 8 Stunden existiert und Bahn laut Policy bevorzugt ist."
+            )
+
+        if note == (
+            "Flight and transfer enrichment was performed for the first economy "
+            "flight because no valid rail option under 8 hours exists."
+        ):
+            return (
+                "Flug- und Transferdaten wurden einbezogen, weil keine gültige "
+                "Bahnoption unter 8 Stunden existiert."
+            )
+
+        return note or "Flug- und Transferdaten wurden bei Bedarf einbezogen."
+
+    def _format_decision(self, decision: dict, language: str = "en") -> str:
         """Explains the SmartContractClient decision without changing it."""
+        if language == "de":
+            return (
+                "Geschäftsreise-Entscheidung\n"
+                "===========================\n"
+                "Die finale Auswahl wurde durch die SmartContractClient-Policy-Logik getroffen.\n"
+                "\n"
+                "Ausgewählte Option:\n"
+                f"{self._format_offer(decision['selected_offer'], language)}\n"
+                "\n"
+                "Entscheidungsgrund:\n"
+                f"{self._format_decision_reason(decision['decision_reason'], language)}\n"
+                "\n"
+                "Datenanreicherung:\n"
+                f"{self._format_enrichment_note(language)}\n"
+                "\n"
+                "Gültige Alternativen:\n"
+                f"{self._format_valid_alternatives(decision, language)}\n"
+                "\n"
+                "Abgelehnte Optionen:\n"
+                f"{self._format_rejections(decision['rejected_offers'], language)}\n"
+                "\n"
+                "Buchung und Zahlung:\n"
+                "Eine Buchung ist genehmigungspflichtig.\n"
+                "Es wurde noch keine Buchung und keine Zahlung ausgeführt."
+            )
+
         return (
             "Business travel policy result\n"
             "============================\n"
             "Final selection made by SmartContractClient policy logic.\n"
             "\n"
             "Selected option:\n"
-            f"{self._format_offer(decision['selected_offer'])}\n"
+            f"{self._format_offer(decision['selected_offer'], language)}\n"
             "\n"
             "Decision reason:\n"
             f"{decision['decision_reason']}\n"
             "\n"
+            "Valid alternatives:\n"
+            f"{self._format_valid_alternatives(decision, language)}\n"
+            "\n"
             "Travel data enrichment:\n"
-            f"{self._last_enrichment_note or 'Flight and transfer enrichment was performed as needed.'}\n"
+            f"{self._format_enrichment_note(language)}\n"
             "\n"
             "Rejected options:\n"
-            f"{self._format_rejections(decision['rejected_offers'])}\n"
+            f"{self._format_rejections(decision['rejected_offers'], language)}\n"
             "\n"
             "Booking and payment:\n"
             f"booking_requires_approval = {decision['booking_requires_approval']}\n"
             "No booking or payment has been executed."
         )
 
-    def _format_booking_result(self, booking_result: dict) -> str:
+    def _format_booking_result(self, booking_result: dict, language: str = "en") -> str:
         """Formats the Sepolia booking/payment simulation result."""
         provider_booking = booking_result.get("providerBooking", {})
+
+        if language == "de":
+            return (
+                "Buchungs-/Zahlungssimulation eingereicht\n"
+                "========================================\n"
+                f"Ausgewählte Option: {booking_result['selectedOfferId']}\n"
+                f"ProviderAgentId: {booking_result['providerAgentId']}\n"
+                f"Betrag: {booking_result['amountEth']} Sepolia ETH\n"
+                f"Status: {booking_result['status']}\n"
+                f"Transaktion: {booking_result['transactionHash']}\n"
+                f"Etherscan: {booking_result['etherscanUrl']}\n"
+                "\n"
+                "Provider-Buchungssimulation:\n"
+                f"Provider: {provider_booking.get('provider', 'nicht verfügbar')}\n"
+                f"Buchungsreferenz: {provider_booking.get('providerBookingReference', 'nicht verfügbar')}\n"
+                f"Status: {provider_booking.get('status', 'nicht verfügbar')}\n"
+                f"Hinweis: {provider_booking.get('message', 'Provider-Buchungssimulation nicht verfügbar.')}\n"
+                "\n"
+                "Hinweis:\n"
+                "Dies ist nur eine Sepolia-Testnet- und Provider-Simulation. "
+                "Die finale Confirmation kann später über Etherscan oder ein separates "
+                "Check-Script geprüft werden. Es wurde keine echte Reisebuchung ausgeführt."
+            )
 
         return (
             "Sepolia booking/payment simulation submitted\n"
@@ -504,12 +714,20 @@ class BusinessTravelAgent:
 
         context_key = context_id or "default"
         state = self._get_state(context_key)
+        detected_language = self._detect_language(query)
+        if detected_language == "de" or state.language == "en":
+            state.language = detected_language
 
         if self._looks_like_booking_intent(query):
             if not state.selected_offer:
+                if state.language == "de":
+                    return (
+                        "Bitte planen Sie zuerst eine Reise, damit eine "
+                        "policy-konforme Option ausgewählt werden kann.",
+                        False,
+                    )
                 return (
-                    "Bitte planen Sie zuerst eine Reise, damit eine "
-                    "policy-konforme Option ausgewählt werden kann.",
+                    "Please plan a trip first so a policy-compliant option can be selected.",
                     False,
                 )
 
@@ -525,7 +743,7 @@ class BusinessTravelAgent:
             booking_result["providerBooking"] = await self._simulate_provider_booking(
                 state.selected_offer
             )
-            return self._format_booking_result(booking_result), False
+            return self._format_booking_result(booking_result, state.language), False
 
         self._parse_query_into_state(query, state)
 
@@ -562,6 +780,6 @@ class BusinessTravelAgent:
         # booking/payment simulation. The agent still does not choose the offer.
         state.selected_offer = selected_offer
 
-        response = self._format_decision(decision)
+        response = self._format_decision(decision, state.language)
         logger.info("BusinessTravelAgent returning final text response")
         return response, False
