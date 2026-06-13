@@ -109,6 +109,12 @@ def _booking_values_from_offer(selected_offer: dict) -> dict[str, Any]:
     }
 
 
+def _hex_with_prefix(value: Any) -> str:
+    """Return an Ethereum hex string with 0x prefix."""
+    hex_value = value.hex() if hasattr(value, "hex") else str(value)
+    return hex_value if hex_value.startswith("0x") else f"0x{hex_value}"
+
+
 def _build_booking_transaction(selected_offer: dict):
     """Prepare Web3 objects and an unsigned createBooking transaction."""
     try:
@@ -181,7 +187,7 @@ def submit_booking_for_offer(selected_offer: dict) -> dict:
 
     signed_tx = account.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    transaction_hash = tx_hash.hex()
+    transaction_hash = _hex_with_prefix(tx_hash)
 
     return {
         "selectedOfferId": booking_values["selected_offer_id"],
@@ -212,7 +218,7 @@ def create_booking_for_offer(selected_offer: dict) -> dict:
         raise BookingClientError("BookingCreated event wurde nicht gefunden.")
 
     booking_id = events[0]["args"]["bookingId"]
-    transaction_hash = receipt["transactionHash"].hex()
+    transaction_hash = _hex_with_prefix(receipt["transactionHash"])
 
     return {
         "bookingId": int(booking_id),
