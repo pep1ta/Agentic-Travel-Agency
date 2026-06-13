@@ -5,8 +5,12 @@
     "businessAgentRegistry": {
       "address": "0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292",
       "deploymentTx": "0x2d4a483c5fd9e29350e63dd7be3958052b102947df8907d4392bdb812775bf65"
+    },
+    "businessTravelPolicy": {
+      "address": "0x9d420529eeCb94f9192589DCf12016BcDda69237",
+      "deploymentTx": "0xf8e10e9375bef37af7be9e692deef5778f495d11aed7b6176595bffb162cd04c"
     }
   },
   "deployer": "0x669cADd0E9379B54fA690cE8FA9DDdE88F5a1E0D",
-  "updatedAt": "2026-06-13T12:49:28.064Z"
+  "updatedAt": "2026-06-13T13:14:52.697Z"
 }
