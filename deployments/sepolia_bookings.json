@@ -12,7 +12,10 @@
       "bookingURI": "local://bookings/business-travel/rail-1-demo",
       "amountEth": "0.0001",
       "transactionHash": "0x49240488e2c0a9717b54c6769e8356d3a661f6eb4d07bdaf78c6743dffbc268a",
-      "createdAt": "2026-06-13T13:30:02.842Z"
+      "createdAt": "2026-06-13T13:30:02.842Z",
+      "completedAt": "2026-06-13T13:33:17.230Z",
+      "completionTransactionHash": "0xfaccdf1afa0101c77e90ecef086e1a09f856c0c1016cf52a17fb40b3c9f57a05",
+      "status": "Completed"
     }
   ]
 }
