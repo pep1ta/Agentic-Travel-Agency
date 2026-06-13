@@ -37,6 +37,8 @@ class OrchestratorAgent:
         self._openai = AsyncOpenAI()  # reads OPENAI_API_KEY from env
         self._factory = ClientFactory() # A2A client factory for building clients to sub-agents based on their cards
         self._active_agent: dict[str, str] = {}  # context_id → agent_name when INPUT_REQUIRED
+        self._last_agent: dict[str, str] = {}  # context_id -> last delegated agent
+        self._last_business_travel_context_id: str | None = None
         
         self._agent_clients: dict[str, Any] = {} 
         self._mcp_tools: dict[str, MCPTool] = {}
@@ -186,6 +188,20 @@ class OrchestratorAgent:
         )
         return has_travel_time and has_known_destination and has_route_word
 
+    def _looks_like_booking_intent(self, query: str) -> bool:
+        """Detects booking follow-ups after a BusinessTravelAgent result."""
+        query_normalized = self._normalize_text(query).strip(" .,!?:;")
+        booking_phrases = [
+            "buchen",
+            "option buchen",
+            "ich moechte buchen",
+            "ich mochte buchen",
+            "bitte buchen",
+            "book it",
+            "i want to book",
+        ]
+        return query_normalized in booking_phrases
+
     # -----------------------------------------------------------------------
     # Tool implementations
     # -----------------------------------------------------------------------
@@ -223,6 +239,10 @@ class OrchestratorAgent:
                     self._active_agent[context_id] = agent_name
             else:
                 self._active_agent.pop(context_id, None)
+                if context_id:
+                    self._last_agent[context_id] = agent_name
+                    if agent_name == "Business Travel Agent":
+                        self._last_business_travel_context_id = context_id
         return "\n".join(response_parts) if response_parts else "(no response)"
 
 
@@ -243,7 +263,6 @@ class OrchestratorAgent:
 
     async def invoke(self, query: str, context_id: str | None = None) -> tuple[str, bool]:
         """Processes a user message using OpenAI with tool use."""
-        print(f"DEBUG invoke: context_id={context_id}, active_agents={self._active_agent}")
 
         # If a sub-agent is waiting for input, delegate directly without calling OpenAI
         if context_id and context_id in self._active_agent:
@@ -251,6 +270,27 @@ class OrchestratorAgent:
             result = await self._delegate_task(agent_name, query, context_id)
             input_required = context_id in self._active_agent
             return result, input_required
+
+        # Booking after a completed business travel selection is a follow-up,
+        # not a new travel-planning request. Reuse the previous
+        # BusinessTravelAgent context so the selected_offer remains available.
+        if self._looks_like_booking_intent(query):
+            booking_context_id = context_id
+
+            if (
+                not booking_context_id
+                or self._last_agent.get(booking_context_id) != "Business Travel Agent"
+            ):
+                booking_context_id = self._last_business_travel_context_id
+
+            if booking_context_id:
+                logger.info("Routing booking follow-up to BusinessTravelAgent")
+                result = await self._delegate_task(
+                    "Business Travel Agent",
+                    query,
+                    booking_context_id,
+                )
+                return result, False
 
         # Business travel requests are delegated deterministically so the
         # BusinessTravelAgent can use A2A INPUT_REQUIRED for missing slots.
