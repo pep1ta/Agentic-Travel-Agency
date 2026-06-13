@@ -11,6 +11,9 @@ from openai import AsyncOpenAI
 from a2a.client import ClientFactory
 from a2a.types import TaskState, Message, Part, Role, SendMessageRequest, AgentInterface
 
+from utilities.blockchain.business_agent_registry_discovery import (
+    discover_business_travel_agent_endpoint,
+)
 from utilities.mcp.mcp_connect import MCPConnector, MCPTool
 
 logger = logging.getLogger(__name__)
@@ -52,7 +55,24 @@ class OrchestratorAgent:
         self._tools = self._build_tools(mcp_tools) # convert to OpenAI tool definitions
         logger.info(f"Retrieved MCP tools: {[t.name for t in mcp_tools]}")
 
-        # 2. Build A2A clients for each sub-agent based on the URLs in the registry file
+        # 2. Optional on-chain discovery for the BusinessTravelAgent.
+        # If this read-only lookup fails, the local JSON registry remains the
+        # simple fallback for the demo.
+        discovered_endpoint, discovery_error = discover_business_travel_agent_endpoint()
+
+        if discovered_endpoint:
+            logger.info(f"Using on-chain discovered BusinessTravelAgent: {discovered_endpoint}")
+            agent_urls = [
+                url for url in agent_urls
+                if "10004" not in url and "Business Travel Agent" not in url
+            ]
+            agent_urls.insert(0, discovered_endpoint)
+        else:
+            logger.info("Using local JSON fallback for BusinessTravelAgent")
+            if discovery_error:
+                logger.info(f"On-chain BusinessTravelAgent discovery skipped: {discovery_error}")
+
+        # 3. Build A2A clients for each sub-agent based on the discovered/fallback URLs
         for url in agent_urls:
             try:
                 client = await self._factory.create_from_url(url)
