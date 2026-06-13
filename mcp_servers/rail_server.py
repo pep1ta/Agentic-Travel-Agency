@@ -137,6 +137,16 @@ RAIL_OPTIONS_MUNSTER_MUNICH = [
     },
 ]
 
+KNOWN_RAIL_OFFER_IDS = {
+    offer["offer_id"]
+    for options in [
+        RAIL_OPTIONS_DORTMUND_MUNICH,
+        RAIL_OPTIONS_DORTMUND_VIENNA,
+        RAIL_OPTIONS_MUNSTER_MUNICH,
+    ]
+    for offer in options
+}
+
 
 def _normalize(text: str) -> str:
     """Normalizes German umlauts enough for simple mock route matching."""
@@ -169,6 +179,30 @@ def search_rail_options(origin: str, destination: str, appointment_time: str) ->
         return RAIL_OPTIONS_MUNSTER_MUNICH.copy()
 
     return []
+
+
+@mcp.tool()
+def book_rail_offer(offer_id: str) -> dict:
+    """Simulates a rail provider booking confirmation.
+
+    This is mock provider behavior only. No real ticket is booked and no
+    provider payment is executed here.
+    """
+    if offer_id not in KNOWN_RAIL_OFFER_IDS:
+        return {
+            "offerId": offer_id,
+            "provider": "RailProviderAgent",
+            "status": "error",
+            "message": f"Unknown rail offer_id: {offer_id}",
+        }
+
+    return {
+        "providerBookingReference": f"RAIL-SIM-{offer_id.upper()}",
+        "offerId": offer_id,
+        "provider": "RailProviderAgent",
+        "status": "simulated_confirmed",
+        "message": "Simulated rail booking confirmation. No real booking was performed.",
+    }
 
 
 if __name__ == "__main__":

@@ -71,6 +71,18 @@ FLIGHT_OPTIONS_DORTMUND_VIENNA = [
     },
 ]
 
+KNOWN_FLIGHT_OFFER_IDS = {
+    offer["offer_id"]
+    for options in [
+        FLIGHT_OPTIONS_DORTMUND_MUNICH,
+        FLIGHT_OPTIONS_DORTMUND_VIENNA,
+    ]
+    for offer in options
+}
+KNOWN_FLIGHT_OFFER_IDS.update(
+    f"{offer_id}-with-transfers" for offer_id in list(KNOWN_FLIGHT_OFFER_IDS)
+)
+
 
 @mcp.tool()
 def search_flight_options(origin: str, destination: str, appointment_time: str) -> list[dict]:
@@ -91,6 +103,30 @@ def search_flight_options(origin: str, destination: str, appointment_time: str) 
         return FLIGHT_OPTIONS_DORTMUND_VIENNA.copy()
 
     return FLIGHT_OPTIONS_DORTMUND_MUNICH.copy()
+
+
+@mcp.tool()
+def book_flight_offer(offer_id: str) -> dict:
+    """Simulates a flight provider booking confirmation.
+
+    This is mock provider behavior only. No real flight is booked and no
+    provider payment is executed here.
+    """
+    if offer_id not in KNOWN_FLIGHT_OFFER_IDS:
+        return {
+            "offerId": offer_id,
+            "provider": "FlightProviderAgent",
+            "status": "error",
+            "message": f"Unknown flight offer_id: {offer_id}",
+        }
+
+    return {
+        "providerBookingReference": f"FLIGHT-SIM-{offer_id.upper()}",
+        "offerId": offer_id,
+        "provider": "FlightProviderAgent",
+        "status": "simulated_confirmed",
+        "message": "Simulated flight booking confirmation. No real booking was performed.",
+    }
 
 
 if __name__ == "__main__":
