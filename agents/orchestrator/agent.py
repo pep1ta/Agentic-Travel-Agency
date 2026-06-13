@@ -2,7 +2,6 @@
 
 import json
 import logging
-import unicodedata
 import uuid
 from typing import Any
 
@@ -14,7 +13,6 @@ from a2a.types import TaskState, Message, Part, Role, SendMessageRequest, AgentI
 from utilities.blockchain.business_agent_registry_discovery import (
     discover_business_travel_agent_endpoint,
 )
-from utilities.mcp.mcp_connect import MCPConnector, MCPTool
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +22,7 @@ class OrchestratorAgent:
     """Core orchestrator logic.
 
     Receives agent cards and builds A2A connectors from them.
-    Instantiates MCPConnector to load MCP tools.
-    Uses OpenAI directly to decide which tool/agent to call.
+    Uses OpenAI directly to decide which A2A agent to call.
     """
 
     SUPPORTED_CONTENT_TYPES = ["text", "text/plain"]
@@ -41,21 +38,16 @@ class OrchestratorAgent:
         self._last_business_travel_context_id: str | None = None
         
         self._agent_clients: dict[str, Any] = {} 
-        self._mcp_tools: dict[str, MCPTool] = {}
         self._tools: list[dict] = []
 
 
     async def initialize(self, agent_urls: list[str]) -> None:
         """Async setup — must be called once before invoke().
-        Connects to MCP servers to load tools and builds A2A clients for all sub-agents.
+        Builds A2A clients for all sub-agents.
         """
-        # 1. Connect to each MCP server and fetch available tools
-        self.mcp = MCPConnector()
-        await self.mcp.initialize()
-        mcp_tools = self.mcp.get_tools()
-        self._mcp_tools = {t.name: t for t in mcp_tools} # name → MCPTool for calling later
-        self._tools = self._build_tools(mcp_tools) # convert to OpenAI tool definitions
-        logger.info(f"Retrieved MCP tools: {[t.name for t in mcp_tools]}")
+        # 1. Build the small OpenAI tool list for A2A routing.
+        self._tools = self._build_tools()
+        logger.info("OpenAI tool names: %s", [t["function"]["name"] for t in self._tools])
 
         # 2. Optional on-chain discovery for the BusinessTravelAgent.
         # If this read-only lookup fails, the local JSON registry remains the
@@ -89,9 +81,9 @@ class OrchestratorAgent:
     # Tool definitions for OpenAI
     # -----------------------------------------------------------------------
 
-    def _build_tools(self, mcp_tools: list[MCPTool]) -> list[dict]:
-        """Builds the full OpenAI tool definition list."""
-        tools = [
+    def _build_tools(self) -> list[dict]:
+        """Builds the OpenAI tool definition list for A2A routing only."""
+        return [
             {
                 "type": "function",
                 "function": {
@@ -123,84 +115,47 @@ class OrchestratorAgent:
             },
         ]
 
-        for tool in mcp_tools:
-            tools.append({
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.input_schema,
-                },
-            })
-
-        return tools
-
     # -----------------------------------------------------------------------
     # System prompt
     # -----------------------------------------------------------------------
 
     def _root_instruction(self) -> str:
         return (
-            "You are a travel agency orchestrator. You route user requests to the right tools or sub-agents.\n"
-            "For business travel requests, use list_agents() and then delegate_task() to the "
-            "\"Business Travel Agent\".\n"
-            "The Business Travel Agent collects and structures rail, flight and mobility options.\n"
-            "The final policy-compliant travel selection is made by the SmartContractClient, "
-            "not by you, not by the LLM, and not by the agent.\n"
-            "Do not choose the final travel option yourself. Explain the result returned by the delegated agent.\n\n"
-            "You help users by:\n"
-            "1. Using list_agents() to see available sub-agents.\n"
-            "2. Using delegate_task(agent_name, message) to delegate business travel planning "
-            "   to the Business Travel Agent.\n"
-            "3. Using delegate_task(agent_name, message) to delegate hotel searches and bookings "
-            "   to the Hotel Agent when the user asks for hotel booking.\n"
-            "4. Using MCP tools to fetch weather and attractions data when relevant.\n"
-            "Always pick the right tool for the job and respond helpfully."
+            "You are the orchestrator of an enterprise agent system. "
+            "The company operates specialized agents for different task domains. "
+            "Your job is to route user requests to the appropriate specialized agent, "
+            "not to solve domain-specific tasks yourself.\n\n"
+            "Use list_agents() to inspect the available agents. "
+            "Use delegate_task(agent_name, message) to delegate the user's original request "
+            "to the selected agent. Preserve the user's original wording as much as possible.\n\n"
+            "For business travel or business travel planning requests, delegate to the "
+            "\"Business Travel Agent\". The Business Travel Agent is responsible for "
+            "collecting and structuring rail, flight and mobility options. The final "
+            "policy-compliant travel selection is made by the SmartContractClient, "
+            "not by you and not by the LLM.\n\n"
+            "Do not ask your own travel slot-filling questions. "
+            "Do not ask whether the user prefers train or flight. "
+            "Do not interpret cities, dates, times, routes or request completeness yourself. "
+            "Do not choose the final travel option yourself. "
+            "If a short confirmation or booking request refers to a previous business travel "
+            "decision, delegate it to the Business Travel Agent in the appropriate context.\n\n"
+            "Always choose the appropriate specialized agent based on the available agent list "
+            "and return the delegated agent's result to the user."
         )
 
-    def _normalize_text(self, text: str) -> str:
-        """Normalizes German umlauts for small routing heuristics."""
-        text = text.lower()
-        text = (
-            text.replace("ü", "ue").replace("ä", "ae").replace("ö", "oe")
-            .replace("ã¼", "ue").replace("ã¤", "ae").replace("ã¶", "oe")
-        )
-        return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    def _routing_context_note(self, context_id: str | None) -> str:
+        """Builds non-semantic routing context for the LLM tool router."""
+        last_agent = self._last_agent.get(context_id) if context_id else None
+        has_business_travel_context = self._last_business_travel_context_id is not None
 
-    def _looks_like_business_travel_request(self, query: str) -> bool:
-        """Detects simple business travel requests before calling the LLM.
-
-        This keeps A2A multi-turn slot filling with the BusinessTravelAgent
-        reliable. The BusinessTravelAgent remains responsible for collecting
-        and structuring travel options.
-        """
-        query_normalized = self._normalize_text(query)
-        has_travel_time = "montag" in query_normalized or "10 uhr" in query_normalized
-        has_known_destination = (
-            "muenchen" in query_normalized
-            or "wien" in query_normalized
-            or "vienna" in query_normalized
+        return (
+            "Routing context:\n"
+            f"- current_context_id: {context_id or '(none)'}\n"
+            f"- last_agent_for_current_context: {last_agent or '(none)'}\n"
+            f"- has_previous_business_travel_context: {has_business_travel_context}\n"
+            "Use this only to choose the right tool or sub-agent. Do not infer "
+            "travel slots in the orchestrator."
         )
-        has_route_word = (
-            " von " in f" {query_normalized} "
-            or " nach " in f" {query_normalized} "
-            or " in " in f" {query_normalized} "
-        )
-        return has_travel_time and has_known_destination and has_route_word
-
-    def _looks_like_booking_intent(self, query: str) -> bool:
-        """Detects booking follow-ups after a BusinessTravelAgent result."""
-        query_normalized = self._normalize_text(query).strip(" .,!?:;")
-        booking_phrases = [
-            "buchen",
-            "option buchen",
-            "ich moechte buchen",
-            "ich mochte buchen",
-            "bitte buchen",
-            "book it",
-            "i want to book",
-        ]
-        return query_normalized in booking_phrases
 
     # -----------------------------------------------------------------------
     # Tool implementations
@@ -246,17 +201,6 @@ class OrchestratorAgent:
         return "\n".join(response_parts) if response_parts else "(no response)"
 
 
-    async def _call_mcp_tool(self, tool_name: str, args: dict) -> str:
-        tool = self._mcp_tools.get(tool_name)
-        if not tool:
-            return f"Unknown MCP tool: {tool_name}"
-        try:
-            return await tool.run(args)
-        except Exception as e:
-            logger.error(f"MCP tool call failed for {tool_name}: {e}")
-            return f"Error calling {tool_name}: {e}"
-
-
     # -----------------------------------------------------------------------
     # Main invoke loop
     # -----------------------------------------------------------------------
@@ -271,36 +215,9 @@ class OrchestratorAgent:
             input_required = context_id in self._active_agent
             return result, input_required
 
-        # Booking after a completed business travel selection is a follow-up,
-        # not a new travel-planning request. Reuse the previous
-        # BusinessTravelAgent context so the selected_offer remains available.
-        if self._looks_like_booking_intent(query):
-            booking_context_id = context_id
-
-            if (
-                not booking_context_id
-                or self._last_agent.get(booking_context_id) != "Business Travel Agent"
-            ):
-                booking_context_id = self._last_business_travel_context_id
-
-            if booking_context_id:
-                logger.info("Routing booking follow-up to BusinessTravelAgent")
-                result = await self._delegate_task(
-                    "Business Travel Agent",
-                    query,
-                    booking_context_id,
-                )
-                return result, False
-
-        # Business travel requests are delegated deterministically so the
-        # BusinessTravelAgent can use A2A INPUT_REQUIRED for missing slots.
-        if self._looks_like_business_travel_request(query):
-            result = await self._delegate_task("Business Travel Agent", query, context_id)
-            input_required = bool(context_id and context_id in self._active_agent)
-            return result, input_required
-
         messages = [
             {"role": "system", "content": self._root_instruction()},
+            {"role": "system", "content": self._routing_context_note(context_id)},
             {"role": "user", "content": query},
         ]
 
@@ -333,13 +250,29 @@ class OrchestratorAgent:
                 if name == "list_agents":
                     result = self._list_agents()
                 elif name == "delegate_task":
-                    result = await self._delegate_task(args["agent_name"], args["message"], context_id)
-                    if context_id and context_id in self._active_agent:
+                    delegate_context_id = context_id
+                    if args["agent_name"] == "Business Travel Agent":
+                        if (
+                            context_id
+                            and self._last_agent.get(context_id) == "Business Travel Agent"
+                        ):
+                            delegate_context_id = context_id
+                        elif self._last_business_travel_context_id:
+                            logger.info(
+                                "Routing BusinessTravelAgent delegation to previous business travel context"
+                            )
+                            delegate_context_id = self._last_business_travel_context_id
+
+                    result = await self._delegate_task(
+                        args["agent_name"],
+                        args["message"],
+                        delegate_context_id,
+                    )
+                    if delegate_context_id and delegate_context_id in self._active_agent:
                         messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
                         return result, True
                 else:
-                    # Any other tool name is an MCP tool (e.g. get_weather, get_attractions)
-                    result = await self._call_mcp_tool(name, args)
+                    result = f"Unknown tool: {name}"
 
                 logger.info(f"Tool result for {name}: {result[:200]}")
                 # Append tool result to history so OpenAI can use it in the next iteration
