@@ -103,6 +103,23 @@ The result contains:
 - decision reason,
 - `booking_requires_approval = True`.
 
+### A2A Multi-Turn Slot Filling
+
+The prototype also supports A2A Multi-Turn for missing request data.
+
+Example:
+
+```text
+Turn 1: Ich muss Montag um 10 Uhr in München sein.
+Turn 2: Münster
+```
+
+In Turn 1, the `BusinessTravelAgent` can identify the destination München, but the origin is missing. It returns an input-required response and keeps a small in-memory state for the A2A context.
+
+In Turn 2, Münster is interpreted as the missing origin. The original destination and appointment time are reused, and planning continues for Münster -> München.
+
+This multi-turn behavior only completes the request. It does not change the governance model: the final policy decision is still made by `SmartContractClient` or the smart contract policy.
+
 ## 5. Policy-aware Enrichment
 
 The `BusinessTravelAgent` uses policy-aware enrichment to avoid unnecessary tool calls.
@@ -191,10 +208,19 @@ V2 does not yet include:
 - A `flight_with_transfers` offer is built.
 - Selected offer: `flight-1-with-transfers`.
 
+### Scenario C: Münster -> München via Multi-Turn
+
+- Turn 1 provides destination München and appointment time.
+- Turn 2 provides the missing origin Münster.
+- The A2A context is reused.
+- Planning runs for Münster -> München.
+- Multi-turn affects only slot filling, not policy selection.
+
 Both scenarios are verified by:
 
 ```text
 uv run python scripts/verify_business_travel.py
+npx hardhat test
 ```
 
 ## 9. Security and Governance Meaning

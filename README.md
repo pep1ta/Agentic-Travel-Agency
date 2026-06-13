@@ -222,6 +222,57 @@ The expected policy result is:
 
 The response should make clear that the agent did not independently choose the best offer. It gathered and structured information, while the SmartContractClient applied the policy.
 
+## Manual Demo Scenarios
+
+**Scenario A: Dortmund -> München**
+
+```text
+Ich muss Montag um 10 Uhr von Dortmund nach München.
+```
+
+Expected:
+
+- selected_offer_id: `rail-1`
+- rail is preferred
+- Flight/Mobility is not included unnecessarily
+
+**Scenario B: Dortmund -> Wien**
+
+```text
+Ich muss Montag um 10 Uhr von Dortmund nach Wien.
+```
+
+Expected:
+
+- selected_offer_id: `flight-1-with-transfers`
+- Rail MCP provides no valid rail option under 8 hours
+- Flight + Mobility are included
+
+**Scenario C: A2A Multi-Turn Slot Filling**
+
+Turn 1:
+
+```text
+Ich muss Montag um 10 Uhr in München sein.
+```
+
+The agent asks for the missing origin.
+
+Turn 2:
+
+```text
+Münster
+```
+
+Expected:
+
+- the A2A context remains open between turns
+- destination München and appointment time from Turn 1 are reused
+- Münster is interpreted as the missing origin
+- planning runs for Münster -> München
+
+A2A Multi-Turn is used only to complete missing request data. The final policy decision is still made by `SmartContractClient`, not by the LLM or the agent.
+
 ## Isolated BusinessTravelAgent Demo
 
 For debugging the BusinessTravelAgent without the Orchestrator, run:
@@ -264,12 +315,14 @@ The script checks:
 
 - Scenario A: Dortmund -> München has a valid rail option under 8 hours, so the SmartContractClient selects `rail-1`.
 - Scenario B: Dortmund -> Wien has no valid rail option under 8 hours, so Flight + Mobility are included and the SmartContractClient selects `flight-1-with-transfers`.
+- Scenario C: a missing origin is collected through A2A Multi-Turn slot filling.
 
 Expected output:
 
 ```text
 Scenario A selected_offer_id: rail-1
 Scenario B selected_offer_id: flight-1-with-transfers
+Multi-turn selected_offer_id: rail-muenster-1
 Business travel verification passed.
 ```
 
