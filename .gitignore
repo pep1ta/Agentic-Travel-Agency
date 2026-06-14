@@ -8,3 +8,6 @@ node_modules/
 
 build/hardhat/cache/
 build/hardhat/artifacts/
+
+# Demo runtime logs
+ops/demo/logs/
