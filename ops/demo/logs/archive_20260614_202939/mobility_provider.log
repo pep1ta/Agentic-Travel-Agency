@@ -1,0 +1,68 @@
+﻿=== MobilityProviderAgent (port 10012) started: 2026-06-14 20:06:21 ===
+uv : INFO:__main__:Mobility Provider Agent starting at http://0.0.0.0:10012
+In Zeile:7 Zeichen:1
++ uv run python -m agents.mobility 2>&1 | Tee-Object -FilePath 'C:\User ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:__main__:M...//0.0.0.0:10012:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:     Started server process [36256]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10012 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58292 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54857 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52516 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:agents.mobility.agent:MobilityProviderAgent received: {"origin": "Dortmund", "destination": "M³nchen", 
+"departure_airport": "DUS", "arrival_airport": "MUC"} (context: 631c3b65-88de-4f2b-81d5-fcb623f97cce)
+INFO:agents.mobility.agent:MobilityProviderAgent: get transfers DUS -> MUC for Dortmund -> M³nchen
+INFO:httpx:HTTP Request: GET http://localhost:8006/sse "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=28c84036a7524ade81ce7d412e80b00d "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=28c84036a7524ade81ce7d412e80b00d "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=28c84036a7524ade81ce7d412e80b00d "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=28c84036a7524ade81ce7d412e80b00d "HTTP/1.1 
+202 Accepted"
+INFO:     127.0.0.1:52516 - "POST / HTTP/1.1" 200 OK
+INFO:agents.mobility.agent:MobilityProviderAgent received: {"origin": "Dortmund", "destination": "M³nchen", 
+"departure_airport": "DUS", "arrival_airport": "MUC"} (context: f147a0ab-1a92-46d9-a551-7f246f0fd0e1)
+INFO:agents.mobility.agent:MobilityProviderAgent: get transfers DUS -> MUC for Dortmund -> M³nchen
+INFO:httpx:HTTP Request: GET http://localhost:8006/sse "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=fe62e3424ed348c38d82e6d68cf98fc7 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=fe62e3424ed348c38d82e6d68cf98fc7 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=fe62e3424ed348c38d82e6d68cf98fc7 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=fe62e3424ed348c38d82e6d68cf98fc7 "HTTP/1.1 
+202 Accepted"
+INFO:     127.0.0.1:52516 - "POST / HTTP/1.1" 200 OK
+INFO:agents.mobility.agent:MobilityProviderAgent received: {"origin": "Dortmund", "destination": "Wien", 
+"departure_airport": "DUS", "arrival_airport": "VIE"} (context: bac8eea0-8ea8-4028-896e-dc26cf02e050)
+INFO:agents.mobility.agent:MobilityProviderAgent: get transfers DUS -> VIE for Dortmund -> Wien
+INFO:httpx:HTTP Request: GET http://localhost:8006/sse "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=6b9b5898da7749ba96ca1a01caae7361 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=6b9b5898da7749ba96ca1a01caae7361 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=6b9b5898da7749ba96ca1a01caae7361 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=6b9b5898da7749ba96ca1a01caae7361 "HTTP/1.1 
+202 Accepted"
+INFO:     127.0.0.1:52540 - "POST / HTTP/1.1" 200 OK
+INFO:agents.mobility.agent:MobilityProviderAgent received: {"origin": "Dortmund", "destination": "Wien", 
+"departure_airport": "DUS", "arrival_airport": "VIE"} (context: 1d40d432-9718-4064-891b-c73f9b64640b)
+INFO:agents.mobility.agent:MobilityProviderAgent: get transfers DUS -> VIE for Dortmund -> Wien
+INFO:httpx:HTTP Request: GET http://localhost:8006/sse "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=17520da938d847e181a1c37d773f1468 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=17520da938d847e181a1c37d773f1468 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=17520da938d847e181a1c37d773f1468 "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8006/messages/?session_id=17520da938d847e181a1c37d773f1468 "HTTP/1.1 
+202 Accepted"
+INFO:     127.0.0.1:52540 - "POST / HTTP/1.1" 200 OK
+=== MobilityProviderAgent (port 10012) exited: 2026-06-14 20:19:46 ===

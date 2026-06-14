@@ -1,0 +1,42 @@
+﻿=== RailProviderAgent (port 10010) started: 2026-06-14 20:06:20 ===
+uv : INFO:__main__:Rail Provider Agent starting at http://0.0.0.0:10010
+In Zeile:7 Zeichen:1
++ uv run python -m agents.rail 2>&1 | Tee-Object -FilePath 'C:\Users\ba ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:__main__:R...//0.0.0.0:10010:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:     Started server process [73004]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10010 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58288 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54853 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52497 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:agents.rail.agent:RailProviderAgent received: {"origin": "Dortmund", "destination": "M³nchen", 
+"appointment_time": "Montag 10 Uhr"} (context: b5b586c7-df72-47a0-b73e-3e73352302fd)
+INFO:agents.rail.agent:RailProviderAgent: search Dortmund -> M³nchen at Montag 10 Uhr
+INFO:httpx:HTTP Request: GET http://localhost:8004/sse "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca "HTTP/1.1 
+202 Accepted"
+INFO:     127.0.0.1:52497 - "POST / HTTP/1.1" 200 OK
+INFO:agents.rail.agent:RailProviderAgent received: {"origin": "Dortmund", "destination": "Wien", "appointment_time": 
+"Montag 10 Uhr"} (context: a8fa26d6-946c-4859-8960-915ba4c03fc7)
+INFO:agents.rail.agent:RailProviderAgent: search Dortmund -> Wien at Montag 10 Uhr
+INFO:httpx:HTTP Request: GET http://localhost:8004/sse "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b "HTTP/1.1 
+202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost:8004/messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b "HTTP/1.1 
+202 Accepted"
+INFO:     127.0.0.1:52528 - "POST / HTTP/1.1" 200 OK
+=== RailProviderAgent (port 10010) exited: 2026-06-14 20:19:46 ===

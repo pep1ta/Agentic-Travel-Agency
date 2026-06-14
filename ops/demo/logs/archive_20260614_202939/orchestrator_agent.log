@@ -1,0 +1,20 @@
+﻿=== OrchestratorAgent (port 10002) started: 2026-06-14 20:11:50 ===
+uv : INFO:agents.orchestrator.agent:OpenAI tool names: ['list_agents', 'delegate_task']
+In Zeile:6 Zeichen:1
++ uv run python -m agents.orchestrator 2>&1 | Tee-Object -FilePath 'C:\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:agents.orc...delegate_task']:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:agents.orchestrator.agent:Using on-chain discovered BusinessTravelAgent: http://localhost:10004
+WARNING:agents.orchestrator.agent:Failed to build client for http://localhost:10004: Network communication error 
+fetching agent card from http://localhost:10004/.well-known/agent-card.json: All connection attempts failed
+INFO:__main__:Orchestrator starting at http://0.0.0.0:10002
+INFO:     Started server process [14992]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10002 (Press CTRL+C to quit)
+INFO:     127.0.0.1:52945 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54861 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+=== OrchestratorAgent (port 10002) exited: 2026-06-14 20:19:46 ===

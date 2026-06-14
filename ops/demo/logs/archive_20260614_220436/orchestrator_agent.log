@@ -1,0 +1,51 @@
+﻿**********************
+nStart der Windows PowerShell-Aufzeichnung
+Startzeit: 20260614213651
+Benutzername: MSI\basti
+RunAs-Benutzer: MSI\basti
+Konfigurationsname: 
+Computer: MSI (Microsoft Windows NT 10.0.26200.0)
+Hostanwendung: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass -EncodedCommand UwBlAHQALQBMAG8AYwBhAHQAaQBvAG4AIAAnAEMAOgBcAFUAcwBlAHIAcwBcAGIAYQBzAHQAaQBcAE8AbgBlAEQAcgBpAHYAZQBcAFAAZQByAHMA9gBoAG4AbABpAGMAaABlAHIAIABCAGUAcgBlAGkAYwBoAFwAVQBuAGkAXABNAGEAcwB0AGUAcgBhAHIAYgBlAGkAdABcAEIAVQBTAEkATgBFAFMAUwBUAFIAQQBWAEUATABBAEcARQBOAEMAWQBOAEUAVwAnAAoAJABoAG8AcwB0AC4AVQBJAC4AUgBhAHcAVQBJAC4AVwBpAG4AZABvAHcAVABpAHQAbABlACAAPQAgACcATwByAGMAaABlAHMAdAByAGEAdABvAHIAQQBnAGUAbgB0ACAAKABwAG8AcgB0ACAAMQAwADAAMAAyACkAJwAKAFMAdABhAHIAdAAtAFQAcgBhAG4AcwBjAHIAaQBwAHQAIAAtAFAAYQB0AGgAIAAnAEMAOgBcAFUAcwBlAHIAcwBcAGIAYQBzAHQAaQBcAE8AbgBlAEQAcgBpAHYAZQBcAFAAZQByAHMA9gBoAG4AbABpAGMAaABlAHIAIABCAGUAcgBlAGkAYwBoAFwAVQBuAGkAXABNAGEAcwB0AGUAcgBhAHIAYgBlAGkAdABcAEIAVQBTAEkATgBFAFMAUwBUAFIAQQBWAEUATABBAEcARQBOAEMAWQBOAEUAVwBcAG8AcABzAFwAZABlAG0AbwBcAGwAbwBnAHMAXABvAHIAYwBoAGUAcwB0AHIAYQB0AG8AcgBfAGEAZwBlAG4AdAAuAGwAbwBnACcAIAAtAEEAcABwAGUAbgBkAAoAVwByAGkAdABlAC0ASABvAHMAdAAgACgAJwA9AD0APQAgAE8AcgBjAGgAZQBzAHQAcgBhAHQAbwByAEEAZwBlAG4AdAAgACgAcABvAHIAdAAgADEAMAAwADAAMgApACAAcwB0AGEAcgB0AGUAZAA6ACAAJwAgACsAIAAoAEcAZQB0AC0ARABhAHQAZQAgAC0ARgBvAHIAbQBhAHQAIAAnAHkAeQB5AHkALQBNAE0ALQBkAGQAIABIAEgAOgBtAG0AOgBzAHMAJwApACAAKwAgACcAIAA9AD0APQAnACkACgAmACAAJwBDADoAXABVAHMAZQByAHMAXABiAGEAcwB0AGkAXABPAG4AZQBEAHIAaQB2AGUAXABQAGUAcgBzAPYAaABuAGwAaQBjAGgAZQByACAAQgBlAHIAZQBpAGMAaABcAFUAbgBpAFwATQBhAHMAdABlAHIAYQByAGIAZQBpAHQAXABCAFUAUwBJAE4ARQBTAFMAVABSAEEAVgBFAEwAQQBHAEUATgBDAFkATgBFAFcAXAAuAHYAZQBuAHYAXABTAGMAcgBpAHAAdABzAFwAcAB5AHQAaABvAG4ALgBlAHgAZQAnACAALQBtACAAYQBnAGUAbgB0AHMALgBvAHIAYwBoAGUAcwB0AHIAYQB0AG8AcgAKAFcAcgBpAHQAZQAtAEgAbwBzAHQAIAAoACcAPQA9AD0AIABPAHIAYwBoAGUAcwB0AHIAYQB0AG8AcgBBAGcAZQBuAHQAIAAoAHAAbwByAHQAIAAxADAAMAAwADIAKQAgAGUAeABpAHQAZQBkADoAIAAnACAAKwAgACgARwBlAHQALQBEAGEAdABlACAALQBGAG8AcgBtAGEAdAAgACcAeQB5AHkAeQAtAE0ATQAtAGQAZAAgAEgASAA6AG0AbQA6AHMAcwAnACkAIAArACAAJwAgAD0APQA9ACcAKQAKAFMAdABvAHAALQBUAHIAYQBuAHMAYwByAGkAcAB0AA==
+Prozess-ID: 13176
+PSVersion: 5.1.26100.8457
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8457
+BuildVersion: 10.0.26100.8457
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Die Aufzeichnung wurde gestartet. Die Ausgabedatei ist "C:\Users\basti\OneDrive\Persöhnlicher Bereich\Uni\Masterarbeit\BUSINESSTRAVELAGENCYNEW\ops\demo\logs\orchestrator_agent.log".
+=== OrchestratorAgent (port 10002) started: 2026-06-14 21:36:51 ===
+tag um 10 Uhr von Dortmund nach München.'})
+INFO:agents.orchestrator.agent:Tool result for delegate_task: Unknown agent: Business Travel Agent. Available: []
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:64635 - "POST / HTTP/1.1" 200 OK
+INFO:agents.orchestrator.executor:Orchestrator received: ich muss montag um 10 uhr von dortmund nach münchen reisen
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.orchestrator.agent:Tool call: list_agents({})
+INFO:agents.orchestrator.agent:Tool result for list_agents: []
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.orchestrator.agent:Tool call: delegate_task({'agent_name': 'Business Travel Agent', 'message': 'ich muss mon
+tag um 10 uhr von dortmund nach münchen reisen'})
+INFO:agents.orchestrator.agent:Tool result for delegate_task: Unknown agent: Business Travel Agent. Available: []
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:53589 - "POST / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57278 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:agents.orchestrator.executor:Orchestrator received: Ich muss Montag um 10 Uhr von Dortmund nach München.
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.orchestrator.agent:Tool call: list_agents({})
+INFO:agents.orchestrator.agent:Tool result for list_agents: []
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.orchestrator.agent:Tool call: delegate_task({'agent_name': 'Business Travel Agent', 'message': 'Ich muss Mon
+tag um 10 Uhr von Dortmund nach München.'})
+INFO:agents.orchestrator.agent:Tool result for delegate_task: Unknown agent: Business Travel Agent. Available: []
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:57283 - "POST / HTTP/1.1" 200 OK
+=== OrchestratorAgent (port 10002) exited: 2026-06-14 21:58:11 ===
+**********************
+Ende der Windows PowerShell-Aufzeichnung
+Endzeit: 20260614215811
+**********************

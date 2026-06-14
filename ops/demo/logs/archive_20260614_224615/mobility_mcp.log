@@ -1,0 +1,51 @@
+﻿**********************
+nStart der Windows PowerShell-Aufzeichnung
+Startzeit: 20260614221649
+Benutzername: MSI\basti
+RunAs-Benutzer: MSI\basti
+Konfigurationsname: 
+Computer: MSI (Microsoft Windows NT 10.0.26200.0)
+Hostanwendung: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass -EncodedCommand UwBlAHQALQBMAG8AYwBhAHQAaQBvAG4AIAAnAEMAOgBcAFUAcwBlAHIAcwBcAGIAYQBzAHQAaQBcAE8AbgBlAEQAcgBpAHYAZQBcAFAAZQByAHMA9gBoAG4AbABpAGMAaABlAHIAIABCAGUAcgBlAGkAYwBoAFwAVQBuAGkAXABNAGEAcwB0AGUAcgBhAHIAYgBlAGkAdABcAEIAVQBTAEkATgBFAFMAUwBUAFIAQQBWAEUATABBAEcARQBOAEMAWQBOAEUAVwAnAAoAJABoAG8AcwB0AC4AVQBJAC4AUgBhAHcAVQBJAC4AVwBpAG4AZABvAHcAVABpAHQAbABlACAAPQAgACcATQBvAGIAaQBsAGkAdAB5ACAATQBDAFAAIABTAGUAcgB2AGUAcgAgACgAcABvAHIAdAAgADgAMAAwADYAKQAnAAoAUwB0AGEAcgB0AC0AVAByAGEAbgBzAGMAcgBpAHAAdAAgAC0AUABhAHQAaAAgACcAQwA6AFwAVQBzAGUAcgBzAFwAYgBhAHMAdABpAFwATwBuAGUARAByAGkAdgBlAFwAUABlAHIAcwD2AGgAbgBsAGkAYwBoAGUAcgAgAEIAZQByAGUAaQBjAGgAXABVAG4AaQBcAE0AYQBzAHQAZQByAGEAcgBiAGUAaQB0AFwAQgBVAFMASQBOAEUAUwBTAFQAUgBBAFYARQBMAEEARwBFAE4AQwBZAE4ARQBXAFwAbwBwAHMAXABkAGUAbQBvAFwAbABvAGcAcwBcAG0AbwBiAGkAbABpAHQAeQBfAG0AYwBwAC4AbABvAGcAJwAgAC0AQQBwAHAAZQBuAGQACgBXAHIAaQB0AGUALQBIAG8AcwB0ACAAKAAnAD0APQA9ACAATQBvAGIAaQBsAGkAdAB5ACAATQBDAFAAIABTAGUAcgB2AGUAcgAgACgAcABvAHIAdAAgADgAMAAwADYAKQAgAHMAdABhAHIAdABlAGQAOgAgACcAIAArACAAKABHAGUAdAAtAEQAYQB0AGUAIAAtAEYAbwByAG0AYQB0ACAAJwB5AHkAeQB5AC0ATQBNAC0AZABkACAASABIADoAbQBtADoAcwBzACcAKQAgACsAIAAnACAAPQA9AD0AJwApAAoAJgAgACcAQwA6AFwAVQBzAGUAcgBzAFwAYgBhAHMAdABpAFwATwBuAGUARAByAGkAdgBlAFwAUABlAHIAcwD2AGgAbgBsAGkAYwBoAGUAcgAgAEIAZQByAGUAaQBjAGgAXABVAG4AaQBcAE0AYQBzAHQAZQByAGEAcgBiAGUAaQB0AFwAQgBVAFMASQBOAEUAUwBTAFQAUgBBAFYARQBMAEEARwBFAE4AQwBZAE4ARQBXAFwALgB2AGUAbgB2AFwAUwBjAHIAaQBwAHQAcwBcAHAAeQB0AGgAbwBuAC4AZQB4AGUAJwAgAG0AYwBwAF8AcwBlAHIAdgBlAHIAcwAvAG0AbwBiAGkAbABpAHQAeQBfAHMAZQByAHYAZQByAC4AcAB5AAoAVwByAGkAdABlAC0ASABvAHMAdAAgACgAJwA9AD0APQAgAE0AbwBiAGkAbABpAHQAeQAgAE0AQwBQACAAUwBlAHIAdgBlAHIAIAAoAHAAbwByAHQAIAA4ADAAMAA2ACkAIABlAHgAaQB0AGUAZAA6ACAAJwAgACsAIAAoAEcAZQB0AC0ARABhAHQAZQAgAC0ARgBvAHIAbQBhAHQAIAAnAHkAeQB5AHkALQBNAE0ALQBkAGQAIABIAEgAOgBtAG0AOgBzAHMAJwApACAAKwAgACcAIAA9AD0APQAnACkACgBTAHQAbwBwAC0AVAByAGEAbgBzAGMAcgBpAHAAdAA=
+Prozess-ID: 40832
+PSVersion: 5.1.26100.8457
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8457
+BuildVersion: 10.0.26100.8457
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Die Aufzeichnung wurde gestartet. Die Ausgabedatei ist "C:\Users\basti\OneDrive\Persöhnlicher Bereich\Uni\Masterarbeit\BUSINESSTRAVELAGENCYNEW\ops\demo\logs\mobility_mcp.log".
+=== Mobility MCP Server (port 8006) started: 2026-06-14 22:16:49 ===
+INFO:     127.0.0.1:60334 - "POST /messages/?session_id=09beee69d9d440e1b3c79b30e9460d02 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60334 - "POST /messages/?session_id=09beee69d9d440e1b3c79b30e9460d02 HTTP/1.1" 202 Accepted
+[06/14/26 22:44:45] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:60334 - "POST /messages/?session_id=09beee69d9d440e1b3c79b30e9460d02 HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+INFO:     127.0.0.1:60336 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60338 - "POST /messages/?session_id=b7859390437c42a8b3d06cf574aa3ba5 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60338 - "POST /messages/?session_id=b7859390437c42a8b3d06cf574aa3ba5 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60338 - "POST /messages/?session_id=b7859390437c42a8b3d06cf574aa3ba5 HTTP/1.1" 202 Accepted
+[06/14/26 22:44:46] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:60338 - "POST /messages/?session_id=b7859390437c42a8b3d06cf574aa3ba5 HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+INFO:     127.0.0.1:60357 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60359 - "POST /messages/?session_id=5a41c2af04f74d2abcd92597f5ab11a1 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60359 - "POST /messages/?session_id=5a41c2af04f74d2abcd92597f5ab11a1 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60359 - "POST /messages/?session_id=5a41c2af04f74d2abcd92597f5ab11a1 HTTP/1.1" 202 Accepted
+[06/14/26 22:45:02] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:60359 - "POST /messages/?session_id=5a41c2af04f74d2abcd92597f5ab11a1 HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+INFO:     127.0.0.1:60361 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60363 - "POST /messages/?session_id=0c6293d1ad94479984886209653d850c HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60363 - "POST /messages/?session_id=0c6293d1ad94479984886209653d850c HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60363 - "POST /messages/?session_id=0c6293d1ad94479984886209653d850c HTTP/1.1" 202 Accepted
+[06/14/26 22:45:03] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:60363 - "POST /messages/?session_id=0c6293d1ad94479984886209653d850c HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+=== Mobility MCP Server (port 8006) exited: 2026-06-14 22:46:12 ===
+**********************
+Ende der Windows PowerShell-Aufzeichnung
+Endzeit: 20260614224612
+**********************

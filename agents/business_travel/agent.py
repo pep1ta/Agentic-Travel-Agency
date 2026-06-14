@@ -1,5 +1,6 @@
 # agents/business_travel/agent.py
 
+import datetime
 import json
 import logging
 import uuid
@@ -213,38 +214,91 @@ class BusinessTravelAgent:
     async def _update_travel_state_with_llm(
         self, query: str, state: TravelPlanningState
     ) -> dict:
-        """Returns a complete merged travel state from the current context + new message.
+        """Classifies user intent and extracts explicit slot values from the current message.
 
-        The LLM sees the full current state and new user input, then returns a
-        single merged JSON state including missing_slots and follow_up_question.
+        For 'plan_trip': returns only what the user explicitly stated — no carry-over from state.
+        For 'slot_fill': returns merged values (existing state + new message).
         Offer selection, policy evaluation, and pricing remain in SmartContractClient.
         """
+        today = datetime.date.today()
+        today_str = today.strftime("%d.%m.%Y")
+        today_weekday_en = today.strftime("%A")
+        currently_missing = [
+            s for s in ("origin", "destination", "appointment_time")
+            if not getattr(state, s, None)
+        ]
         system_prompt = (
             "You are a travel intent parser for a business travel system.\n"
             "You receive the current known travel state and a new user message.\n"
-            "Return a merged, updated state as strict JSON with exactly these keys:\n\n"
+            "Return a JSON object with exactly these keys:\n\n"
             '{\n'
-            '  "intent": "plan_trip" | "book_selected_offer" | "modify_trip" | "unknown",\n'
+            '  "intent": "plan_trip" | "slot_fill" | "book_selected_offer" | "modify_trip" | "unknown",\n'
             '  "language": "de" | "en",\n'
             '  "origin": <city string or null>,\n'
             '  "destination": <city string or null>,\n'
-            '  "appointment_time": <complete string e.g. "Montag 10 Uhr", "morgen 14:30", or null>,\n'
+            '  "appointment_time": <"DD.MM.YYYY HH:mm" or null — see rules below>,\n'
             '  "time_mode": "departure" | "arrival" | "unknown",\n'
-            '  "missing_slots": [<slot names still null: "origin", "destination", "appointment_time">],\n'
-            '  "follow_up_question": <natural language question for user if slots are missing, else null>,\n'
+            '  "missing_slots": [<still-null slot names from: "origin", "destination", "appointment_time">],\n'
+            '  "follow_up_question": <single question in detected language for ALL missing slots, or null>,\n'
             '  "confidence": <0.0-1.0>\n'
             '}\n\n'
-            "Rules:\n"
-            "- Merge the current state with new information from the user message.\n"
-            "- Do NOT clear existing slots unless intent is 'modify_trip' and the user explicitly replaces a slot.\n"
-            "- 'missing_slots' must list every slot that is still null after merging.\n"
-            "- 'follow_up_question' must be in the detected language and ask only for the missing slots.\n"
-            "- If all required slots are filled: 'missing_slots' must be [] and 'follow_up_question' must be null.\n"
-            "- For 'book_selected_offer': 'missing_slots' must be [] regardless of state.\n"
-            "- You MUST NOT select offers, evaluate prices, apply policy, or invent travel options.\n\n"
-            "Current state:\n"
+            "=== APPOINTMENT_TIME FORMAT ===\n"
+            f"Today is {today_str} ({today_weekday_en}).\n"
+            "appointment_time MUST be in 'DD.MM.YYYY HH:mm' format. Examples: '24.06.2026 10:00', '15.06.2026 14:30'.\n"
+            "appointment_time is ONLY non-null when BOTH a concrete date AND a time are fully determinable:\n"
+            "- 'Montag um 10 Uhr' → compute next Monday from today, format as DD.MM.YYYY 10:00.\n"
+            "- 'morgen um 14 Uhr' → tomorrow as DD.MM.YYYY 14:00.\n"
+            "- 'am 24.06.2026 um 10' → '24.06.2026 10:00'.\n"
+            "- '24.06. um 10' → '24.06.2026 10:00' (use current year; if past, use next year).\n"
+            "- 'nächsten Dienstag um 9:30' → date of next Tuesday + '09:30'.\n"
+            "- If year is missing: use current year (2026) unless that date is already past, then 2027.\n"
+            "- Date given but NO time → appointment_time = null. Must ask for time.\n"
+            "- Time given but NO date → appointment_time = null. Must ask for date.\n"
+            "- 'im Juni', 'nächsten Monat', 'Montag' (alone, no time) → null. Too vague.\n\n"
+            "=== INTENT RULES ===\n"
+            "- 'plan_trip': user introduces a NEW travel request containing an explicit DESTINATION "
+            "keyword ('nach X', 'nach Berlin', 'to Vienna', 'Ziel: X'). "
+            "Extract ONLY slots explicitly stated in THIS message. All unmentioned slots = null.\n"
+            "- 'slot_fill': user is answering a follow-up question — providing a missing origin, time, "
+            "or date. The message does NOT contain a new destination. "
+            "Carry over existing slots from current_state; only update the newly mentioned slot(s).\n"
+            "- 'modify_trip': user explicitly replaces a slot of an already-planned trip.\n"
+            "- 'book_selected_offer': user wants to book ('buchen', 'bestätigen', 'confirm', 'yes book it').\n"
+            "- 'unknown': cannot classify.\n\n"
+            "=== DISAMBIGUATION: plan_trip vs slot_fill ===\n"
+            "Use 'slot_fill' (NEVER 'plan_trip') when the message:\n"
+            "  - Provides ONLY a time or date ('Montag um 10', 'um 14 Uhr', 'am 24.06. um 10').\n"
+            "  - Provides ONLY an origin city ('von Dortmund', 'ab Köln', 'from Berlin').\n"
+            "  - Provides origin + time but NO destination ('von Dortmund am 24.06. um 10').\n"
+            "  - Provides just a city that is not a destination ('München' after already knowing dest=München).\n"
+            "  - currently_missing_slots contains 'appointment_time' and the user gives only a time/date.\n"
+            "Use 'plan_trip' ONLY when the message explicitly contains a travel destination keyword.\n"
+            "Rule: A message WITHOUT 'nach X' / 'to X' / 'Ziel: X' is NEVER 'plan_trip'.\n\n"
+            "=== FOLLOW-UP QUESTION RULES ===\n"
+            "Combine ALL missing slots in ONE question. Do NOT ask for already-known slots.\n"
+            "Examples:\n"
+            "  - missing=[origin, appointment_time], dest=München: "
+            "'Von wo reisen Sie, und an welchem Datum um wie viel Uhr müssen Sie in München sein?'\n"
+            "  - missing=[appointment_time], orig=Dortmund, dest=München: "
+            "'An welchem Datum und um wie viel Uhr müssen Sie in München ankommen?'\n"
+            "  - missing=[origin], dest=München, time known: 'Von wo reisen Sie nach München?'\n"
+            "  - missing=[destination, appointment_time], orig=Dortmund: "
+            "'Wohin reisen Sie und an welchem Datum um wie viel Uhr?'\n"
+            "  - appointment_time has date but no time: 'Um wie viel Uhr müssen Sie ankommen?'\n"
+            "  - appointment_time has time but no date: 'An welchem Datum ist die Reise?'\n\n"
+            "=== CRITICAL RULES ===\n"
+            "- A slot may ONLY be non-null if EXPLICITLY stated in the current message.\n"
+            "- NEVER infer, guess, assume, or copy slot values from general knowledge.\n"
+            "- 'missing_slots' lists every slot that is null after applying intent-based logic.\n"
+            "- missing_slots must NEVER be [] unless all three (origin, destination, appointment_time) are present.\n"
+            "- For 'plan_trip': missing_slots computed from the current message only (ignore current_state).\n"
+            "- For 'slot_fill'/'modify_trip': missing_slots computed after merging with current_state.\n"
+            "- For 'book_selected_offer': missing_slots = [].\n"
+            "- NEVER select offers, evaluate prices, apply policy, or invent travel options.\n\n"
+            f"Current state (for slot_fill/modify_trip merging ONLY — ignore for plan_trip):\n"
             f"origin={state.origin or 'null'}, destination={state.destination or 'null'}, "
-            f"appointment_time={state.appointment_time or 'null'}, language={state.language}"
+            f"appointment_time={state.appointment_time or 'null'}, language={state.language}\n"
+            f"currently_missing_slots={json.dumps(currently_missing)}"
         )
 
         try:
@@ -396,9 +450,21 @@ class BusinessTravelAgent:
         state = self._get_state(context_key)
 
         llm_state = await self._update_travel_state_with_llm(query, state)
-        self._apply_llm_state(llm_state, state)
 
         intent = llm_state.get("intent", "unknown")
+
+        # plan_trip starts fresh: clear trip state so slots from a previous trip
+        # never carry over into a new request.
+        if intent == "plan_trip":
+            state.origin = None
+            state.destination = None
+            state.appointment_time = None
+            state.time_mode = "unknown"
+            state.selected_offer = None
+            state.policy_decision = None
+
+        self._apply_llm_state(llm_state, state)
+
         lang = state.language
 
         # Booking intent

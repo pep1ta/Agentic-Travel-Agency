@@ -1,3 +1,23 @@
+/**
+ * discover_business_agents.js
+ *
+ * Read-only diagnostic: queries the BusinessAgentRegistry on Sepolia for all
+ * expected capabilities (business_travel, rail, flight, mobility).
+ *
+ * For each capability the script shows:
+ *   - agentId(s)
+ *   - agentURI, owner, active flag
+ *   - capabilities list
+ *
+ * No wallet or private key needed — read-only Sepolia calls only.
+ *
+ * USAGE:
+ *   node ops/registry/discover_business_agents.js
+ *
+ * REQUIRED ENV:
+ *   ALCHEMY_RPC_URL — Sepolia JSON-RPC endpoint
+ */
+
 import { createPublicClient, getContract, http } from "viem";
 import { sepolia } from "viem/chains";
 import fs from "node:fs";

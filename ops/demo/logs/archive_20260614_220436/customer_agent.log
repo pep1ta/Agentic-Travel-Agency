@@ -1,0 +1,51 @@
+﻿**********************
+nStart der Windows PowerShell-Aufzeichnung
+Startzeit: 20260614213714
+Benutzername: MSI\basti
+RunAs-Benutzer: MSI\basti
+Konfigurationsname: 
+Computer: MSI (Microsoft Windows NT 10.0.26200.0)
+Hostanwendung: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass -EncodedCommand UwBlAHQALQBMAG8AYwBhAHQAaQBvAG4AIAAnAEMAOgBcAFUAcwBlAHIAcwBcAGIAYQBzAHQAaQBcAE8AbgBlAEQAcgBpAHYAZQBcAFAAZQByAHMA9gBoAG4AbABpAGMAaABlAHIAIABCAGUAcgBlAGkAYwBoAFwAVQBuAGkAXABNAGEAcwB0AGUAcgBhAHIAYgBlAGkAdABcAEIAVQBTAEkATgBFAFMAUwBUAFIAQQBWAEUATABBAEcARQBOAEMAWQBOAEUAVwAnAAoAJABoAG8AcwB0AC4AVQBJAC4AUgBhAHcAVQBJAC4AVwBpAG4AZABvAHcAVABpAHQAbABlACAAPQAgACcAQwB1AHMAdABvAG0AZQByAEEAZwBlAG4AdAAgACgAcABvAHIAdAAgADEAMAAwADAAMAApACcACgBTAHQAYQByAHQALQBUAHIAYQBuAHMAYwByAGkAcAB0ACAALQBQAGEAdABoACAAJwBDADoAXABVAHMAZQByAHMAXABiAGEAcwB0AGkAXABPAG4AZQBEAHIAaQB2AGUAXABQAGUAcgBzAPYAaABuAGwAaQBjAGgAZQByACAAQgBlAHIAZQBpAGMAaABcAFUAbgBpAFwATQBhAHMAdABlAHIAYQByAGIAZQBpAHQAXABCAFUAUwBJAE4ARQBTAFMAVABSAEEAVgBFAEwAQQBHAEUATgBDAFkATgBFAFcAXABvAHAAcwBcAGQAZQBtAG8AXABsAG8AZwBzAFwAYwB1AHMAdABvAG0AZQByAF8AYQBnAGUAbgB0AC4AbABvAGcAJwAgAC0AQQBwAHAAZQBuAGQACgBXAHIAaQB0AGUALQBIAG8AcwB0ACAAKAAnAD0APQA9ACAAQwB1AHMAdABvAG0AZQByAEEAZwBlAG4AdAAgACgAcABvAHIAdAAgADEAMAAwADAAMAApACAAcwB0AGEAcgB0AGUAZAA6ACAAJwAgACsAIAAoAEcAZQB0AC0ARABhAHQAZQAgAC0ARgBvAHIAbQBhAHQAIAAnAHkAeQB5AHkALQBNAE0ALQBkAGQAIABIAEgAOgBtAG0AOgBzAHMAJwApACAAKwAgACcAIAA9AD0APQAnACkACgAmACAAJwBDADoAXABVAHMAZQByAHMAXABiAGEAcwB0AGkAXABPAG4AZQBEAHIAaQB2AGUAXABQAGUAcgBzAPYAaABuAGwAaQBjAGgAZQByACAAQgBlAHIAZQBpAGMAaABcAFUAbgBpAFwATQBhAHMAdABlAHIAYQByAGIAZQBpAHQAXABCAFUAUwBJAE4ARQBTAFMAVABSAEEAVgBFAEwAQQBHAEUATgBDAFkATgBFAFcAXAAuAHYAZQBuAHYAXABTAGMAcgBpAHAAdABzAFwAcAB5AHQAaABvAG4ALgBlAHgAZQAnACAALQBtACAAYQBnAGUAbgB0AHMALgBjAHUAcwB0AG8AbQBlAHIACgBXAHIAaQB0AGUALQBIAG8AcwB0ACAAKAAnAD0APQA9ACAAQwB1AHMAdABvAG0AZQByAEEAZwBlAG4AdAAgACgAcABvAHIAdAAgADEAMAAwADAAMAApACAAZQB4AGkAdABlAGQAOgAgACcAIAArACAAKABHAGUAdAAtAEQAYQB0AGUAIAAtAEYAbwByAG0AYQB0ACAAJwB5AHkAeQB5AC0ATQBNAC0AZABkACAASABIADoAbQBtADoAcwBzACcAKQAgACsAIAAnACAAPQA9AD0AJwApAAoAUwB0AG8AcAAtAFQAcgBhAG4AcwBjAHIAaQBwAHQA
+Prozess-ID: 68216
+PSVersion: 5.1.26100.8457
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8457
+BuildVersion: 10.0.26100.8457
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Die Aufzeichnung wurde gestartet. Die Ausgabedatei ist "C:\Users\basti\OneDrive\Persöhnlicher Bereich\Uni\Masterarbeit\BUSINESSTRAVELAGENCYNEW\ops\demo\logs\customer_agent.log".
+=== CustomerAgent (port 10000) started: 2026-06-14 21:37:14 ===
+ess travel, final policy selection is delegated to the SmartContractClient.', 'supportedInterfaces': [{'url': 'http://lo
+calhost:10002', 'protocolBinding': 'JSONRPC'}], 'version': '1.0.0', 'capabilities': {'streaming': False}, 'defaultInputM
+odes': ['text'], 'defaultOutputModes': ['text'], 'skills': [{'id': 'orchestrate_travel', 'name': 'Travel Orchestrator',
+'description': 'Orchestrates travel planning by delegating business travel requests to the Business Travel Agent and hot
+el bookings to the Hotel Agent.', 'tags': ['travel', 'orchestrator'], 'examples': ['I need to be in Munich on Monday at
+10:00.', 'Find hotels in Berlin']}], 'preferredTransport': 'JSONRPC', 'protocolVersion': '0.3', 'url': 'http://localhost
+:10002'}
+INFO:__main__:Customer Agent starting at http://0.0.0.0:10000
+INFO:     Started server process [32968]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63061 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62330 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50482 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50484 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:agents.customer.executor:CustomerAgent received: Ich muss Montag um 10 Uhr von Dortmund nach München.
+INFO:httpx:HTTP Request: POST http://localhost:10002 "HTTP/1.1 200 OK"
+INFO:agents.customer.executor:CustomerAgent result: Es scheint, dass momentan keine spezialisierten Agenten zur Verfügun
+g stehen, um Ihre Anfrage zu bearbeiten. Bitte versuchen Sie es später erneut.
+INFO:     127.0.0.1:64633 - "POST / HTTP/1.1" 200 OK
+INFO:agents.customer.executor:CustomerAgent received: ich muss montag um 10 uhr von dortmund nach münchen reisen
+INFO:httpx:HTTP Request: POST http://localhost:10002 "HTTP/1.1 200 OK"
+INFO:agents.customer.executor:CustomerAgent result: Es scheint, dass im Moment keine spezialisierten Agenten verfügbar s
+ind, um Ihre Anfrage zu bearbeiten. Bitte versuchen Sie es später noch einmal.
+INFO:     127.0.0.1:53587 - "POST / HTTP/1.1" 200 OK
+=== CustomerAgent (port 10000) exited: 2026-06-14 21:58:12 ===
+**********************
+Ende der Windows PowerShell-Aufzeichnung
+Endzeit: 20260614215812
+**********************

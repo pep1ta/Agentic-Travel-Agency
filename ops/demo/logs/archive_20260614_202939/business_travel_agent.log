@@ -1,0 +1,17 @@
+﻿=== BusinessTravelAgent (port 10004) started: 2026-06-14 20:11:50 ===
+uv : INFO:agents.business_travel.agent:Provider endpoints resolved via registry: rail=http://localhost:10010 
+flight=http://localhost:10011 mobility=http://localhost:10012
+In Zeile:6 Zeichen:1
++ uv run python -m agents.business_travel 2>&1 | Tee-Object -FilePath ' ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:agents.bus...localhost:10012:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:__main__:Business Travel Agent starting at http://0.0.0.0:10004
+INFO:     Started server process [76768]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:10004 (Press CTRL+C to quit)
+INFO:     127.0.0.1:52943 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54859 - "GET /.well-known/agent-card.json HTTP/1.1" 200 OK
+=== BusinessTravelAgent (port 10004) exited: 2026-06-14 20:19:46 ===

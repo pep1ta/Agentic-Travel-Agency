@@ -279,39 +279,83 @@ def _attach_deterministic_offer_source(
 
 
 def _attach_llm_stubs(agent: BusinessTravelAgent) -> None:
+    # Next Monday from 2026-06-14 (Sunday) = 2026-06-15
+    # Used for concrete-date entries below
     QUERY_FIELDS: dict = {
+        # --- Complete single-turn plan_trip queries ---
         "ich muss montag um 10 uhr von dortmund nach muenchen.": {
             "intent": "plan_trip", "language": "de",
             "origin": "Dortmund", "destination": "München",
-            "appointment_time": "Montag 10 Uhr", "time_mode": "arrival",
+            "appointment_time": "16.06.2026 10:00", "time_mode": "arrival",
         },
         "ich muss montag um 10 uhr von dortmund nach wien.": {
             "intent": "plan_trip", "language": "de",
             "origin": "Dortmund", "destination": "Wien",
-            "appointment_time": "Montag 10 Uhr", "time_mode": "arrival",
+            "appointment_time": "16.06.2026 10:00", "time_mode": "arrival",
         },
         "montag um 10 uhr von muenster nach muenchen": {
             "intent": "plan_trip", "language": "de",
             "origin": "Muenster", "destination": "München",
-            "appointment_time": "Montag 10 Uhr", "time_mode": "departure",
+            "appointment_time": "16.06.2026 10:00", "time_mode": "departure",
         },
         "morgen 10 uhr von münster nach münchen": {
             "intent": "plan_trip", "language": "de",
             "origin": "Münster", "destination": "München",
-            "appointment_time": "morgen 10 Uhr", "time_mode": "departure",
+            "appointment_time": "15.06.2026 10:00", "time_mode": "departure",
         },
+        # Complete with explicit concrete date
+        "ich muss am 24.06.2026 um 10 uhr von dortmund nach münchen": {
+            "intent": "plan_trip", "language": "de",
+            "origin": "Dortmund", "destination": "München",
+            "appointment_time": "24.06.2026 10:00", "time_mode": "arrival",
+        },
+
+        # --- Incomplete plan_trip — missing slots must trigger follow-up ---
         "ich muss nach münchen fahren": {
             "intent": "plan_trip", "language": "de",
             "destination": "München",
+            # origin + appointment_time absent → follow-up required
+        },
+        "ich muss nach münchen": {
+            "intent": "plan_trip", "language": "de",
+            "destination": "München",
+            # origin + appointment_time absent → follow-up required
+        },
+        "ich muss im juni nach münchen": {
+            # "im Juni" is not a concrete date → appointment_time stays null
+            "intent": "plan_trip", "language": "de",
+            "destination": "München",
+        },
+
+        # --- slot_fill responses — provide missing slots, merge with existing state ---
+        "von dortmund": {
+            # Answering "Von wo reisen Sie?" — only origin
+            "intent": "slot_fill", "language": "de",
+            "origin": "Dortmund",
         },
         "von münster": {
-            "intent": "plan_trip", "language": "de",
+            # Answering "Von wo reisen Sie?" — only origin
+            "intent": "slot_fill", "language": "de",
             "origin": "Münster",
         },
-        "montag um 12 uhr": {
-            "intent": "plan_trip", "language": "de",
-            "appointment_time": "Montag 12 Uhr", "time_mode": "departure",
+        "am 24.06.2026 um 10 uhr": {
+            # Answering "Wann?" — only concrete date+time
+            "intent": "slot_fill", "language": "de",
+            "appointment_time": "24.06.2026 10:00", "time_mode": "departure",
         },
+        "von dortmund am 24.06.2026 um 10 uhr": {
+            # Answering "Von wo und wann?" — origin + concrete date+time
+            "intent": "slot_fill", "language": "de",
+            "origin": "Dortmund",
+            "appointment_time": "24.06.2026 10:00", "time_mode": "departure",
+        },
+        "montag um 12 uhr": {
+            # Answering "Wann?" with relative weekday+time → concrete date computed
+            "intent": "slot_fill", "language": "de",
+            "appointment_time": "16.06.2026 12:00", "time_mode": "departure",
+        },
+
+        # --- Booking ---
         "buchen": {
             "intent": "book_selected_offer", "language": "de",
         },
@@ -322,12 +366,22 @@ def _attach_llm_stubs(agent: BusinessTravelAgent) -> None:
             "intent": "unknown", "language": state.language or "de",
         })
 
-        merged_origin = fields.get("origin") or state.origin
-        merged_dest = fields.get("destination") or state.destination
-        merged_time = fields.get("appointment_time") or state.appointment_time
-        merged_time_mode = fields.get("time_mode") or state.time_mode
         lang = fields.get("language", state.language or "de")
         intent = fields.get("intent", "unknown")
+
+        # plan_trip: extract ONLY what's explicitly in the message — no state carry-over.
+        # This mirrors the real LLM behavior enforced by the updated system prompt.
+        # slot_fill / modify_trip: merge with existing state (slot continuation).
+        if intent == "plan_trip":
+            merged_origin = fields.get("origin")
+            merged_dest = fields.get("destination")
+            merged_time = fields.get("appointment_time")
+            merged_time_mode = fields.get("time_mode") or "unknown"
+        else:
+            merged_origin = fields.get("origin") or state.origin
+            merged_dest = fields.get("destination") or state.destination
+            merged_time = fields.get("appointment_time") or state.appointment_time
+            merged_time_mode = fields.get("time_mode") or state.time_mode
 
         missing: list[str] = []
         if intent not in ("book_selected_offer", "unknown"):
@@ -650,6 +704,196 @@ async def _verify_booking_intent_with_prior_plan(failures: list[str]) -> None:
     _assert_german_response(response_text, failures, "'buchen' with prior plan")
 
 
+async def _verify_no_defaults_for_incomplete_request(failures: list[str]) -> None:
+    """'ich muss nach münchen' must ask for missing slots — never plan with invented defaults."""
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+
+    response_text, input_required = await agent.invoke(
+        "ich muss nach münchen",
+        context_id="verify-no-defaults",
+    )
+
+    _require(
+        input_required is True,
+        "'ich muss nach münchen' should ask for missing slots, not plan directly.",
+        failures,
+    )
+    _require(
+        not seen_offers,
+        "'ich muss nach münchen' should not trigger offer fetching.",
+        failures,
+    )
+    state = agent._get_state("verify-no-defaults")
+    _require(
+        state.origin is None,
+        f"origin should be null after 'ich muss nach münchen', got {state.origin!r}",
+        failures,
+    )
+    _require(
+        state.appointment_time is None,
+        f"appointment_time should be null after 'ich muss nach münchen', got {state.appointment_time!r}",
+        failures,
+    )
+    _require(
+        state.destination == "München",
+        f"destination should be 'München', got {state.destination!r}",
+        failures,
+    )
+    _assert_german_response(response_text, failures, "No-defaults incomplete request")
+    _assert_no_transport_mode_question(response_text, failures, "No-defaults incomplete request")
+
+
+async def _verify_multiturn_concrete_date(failures: list[str]) -> None:
+    """Test 1: step-by-step slot fill with concrete date.
+    Turn 1: 'ich muss nach münchen' → follow-up (origin + date/time)
+    Turn 2: 'von dortmund'          → follow-up (only date/time)
+    Turn 3: 'am 24.06.2026 um 10 uhr' → plans rail-1
+    """
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+    context_id = "verify-multiturn-concrete-date"
+
+    r1, ir1 = await agent.invoke("ich muss nach münchen", context_id=context_id)
+    _require(ir1 is True, "Turn 1 should ask for missing slots (origin + time).", failures)
+    _require(not seen_offers, "Turn 1 should not trigger planning.", failures)
+    s1 = agent._get_state(context_id)
+    _require(s1.destination == "München", f"Turn 1: destination should be München, got {s1.destination!r}", failures)
+    _require(s1.origin is None, f"Turn 1: origin should be null, got {s1.origin!r}", failures)
+    _require(s1.appointment_time is None, f"Turn 1: time should be null, got {s1.appointment_time!r}", failures)
+
+    r2, ir2 = await agent.invoke("von dortmund", context_id=context_id)
+    _require(ir2 is True, "Turn 2 should still ask for missing time.", failures)
+    s2 = agent._get_state(context_id)
+    _require(s2.origin == "Dortmund", f"Turn 2: origin should be Dortmund, got {s2.origin!r}", failures)
+    _require(s2.destination == "München", f"Turn 2: destination should still be München, got {s2.destination!r}", failures)
+    _require(s2.appointment_time is None, f"Turn 2: time should still be null, got {s2.appointment_time!r}", failures)
+
+    r3, ir3 = await agent.invoke("am 24.06.2026 um 10 uhr", context_id=context_id)
+    _require(ir3 is False, "Turn 3 should complete the plan.", failures)
+    _require("rail-1" in r3, "Turn 3 should select rail-1 (Dortmund→München).", failures)
+    s3 = agent._get_state(context_id)
+    _require(
+        "24.06.2026" in (s3.appointment_time or ""),
+        f"Turn 3: appointment_time should contain '24.06.2026', got {s3.appointment_time!r}",
+        failures,
+    )
+    _assert_decision_sections(r3, failures, "Multiturn concrete date (turn 3)")
+    _assert_german_response(r3, failures, "Multiturn concrete date (turn 3)")
+
+
+async def _verify_combined_slot_fill_concrete_date(failures: list[str]) -> None:
+    """Test 2: combined origin + date/time in one slot-fill response.
+    Turn 1: 'ich muss nach münchen' → follow-up
+    Turn 2: 'von dortmund am 24.06.2026 um 10 uhr' → plans rail-1
+    """
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+    context_id = "verify-combined-slot-fill"
+
+    r1, ir1 = await agent.invoke("ich muss nach münchen", context_id=context_id)
+    _require(ir1 is True, "Turn 1 should ask for missing slots.", failures)
+
+    r2, ir2 = await agent.invoke("von dortmund am 24.06.2026 um 10 uhr", context_id=context_id)
+    _require(ir2 is False, "Turn 2 (origin + date/time) should complete the plan.", failures)
+    _require("rail-1" in r2, "Combined slot fill should select rail-1.", failures)
+    s2 = agent._get_state(context_id)
+    _require(s2.origin == "Dortmund", f"origin should be Dortmund, got {s2.origin!r}", failures)
+    _require("24.06.2026" in (s2.appointment_time or ""), f"time should contain '24.06.2026', got {s2.appointment_time!r}", failures)
+    _assert_decision_sections(r2, failures, "Combined slot fill")
+    _assert_german_response(r2, failures, "Combined slot fill")
+
+
+async def _verify_complete_single_turn_concrete_date(failures: list[str]) -> None:
+    """Test 3: fully specified request with concrete date plans directly."""
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+
+    r, ir = await agent.invoke(
+        "ich muss am 24.06.2026 um 10 uhr von dortmund nach münchen",
+        context_id="verify-complete-concrete",
+    )
+    _require(ir is False, "Complete request with concrete date should plan directly.", failures)
+    _require("rail-1" in r, "Complete request with date should select rail-1.", failures)
+    _assert_decision_sections(r, failures, "Complete single-turn with date")
+    _assert_german_response(r, failures, "Complete single-turn with date")
+
+
+async def _verify_incomplete_month_triggers_followup(failures: list[str]) -> None:
+    """Test 4: 'im Juni' is not a concrete date — must ask for origin, day, and time."""
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+
+    r, ir = await agent.invoke(
+        "ich muss im juni nach münchen",
+        context_id="verify-incomplete-month",
+    )
+    _require(ir is True, "'im Juni' alone is not a complete date — should ask for more.", failures)
+    _require(not seen_offers, "'im Juni' should not trigger planning.", failures)
+    s = agent._get_state("verify-incomplete-month")
+    _require(
+        s.appointment_time is None,
+        f"appointment_time should be null for 'im Juni', got {s.appointment_time!r}",
+        failures,
+    )
+    _require(s.destination == "München", f"destination should be München, got {s.destination!r}", failures)
+    _assert_german_response(r, failures, "Incomplete month follow-up")
+
+
+async def _verify_new_trip_resets_decision(failures: list[str]) -> None:
+    """After a completed trip, a new incomplete request must reset and ask for missing slots."""
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+    context_id = "verify-reset-after-decision"
+
+    # Turn 1: fully specified trip — plans and sets policy_decision
+    response1, input_required1 = await agent.invoke(
+        "Ich muss Montag um 10 Uhr von Dortmund nach Muenchen.",
+        context_id=context_id,
+    )
+    _require(
+        input_required1 is False,
+        "Complete first trip should not require further input.",
+        failures,
+    )
+    state_after_first = agent._get_state(context_id)
+    _require(
+        state_after_first.policy_decision is not None,
+        "State should have policy_decision after first complete trip.",
+        failures,
+    )
+
+    # Turn 2: new incomplete request — must NOT reuse Dortmund or Montag 10 Uhr
+    response2, input_required2 = await agent.invoke(
+        "ich muss nach münchen",
+        context_id=context_id,
+    )
+
+    _require(
+        input_required2 is True,
+        "After first trip, 'ich muss nach münchen' should ask for missing slots, not plan.",
+        failures,
+    )
+    state_after_second = agent._get_state(context_id)
+    _require(
+        state_after_second.origin is None,
+        f"origin should be reset to null for new trip, got {state_after_second.origin!r}",
+        failures,
+    )
+    _require(
+        state_after_second.appointment_time is None,
+        f"appointment_time should be reset for new trip, got {state_after_second.appointment_time!r}",
+        failures,
+    )
+    _require(
+        state_after_second.policy_decision is None,
+        "policy_decision should be cleared when new plan_trip starts.",
+        failures,
+    )
+    _assert_german_response(response2, failures, "New trip after completed trip")
+    _assert_no_transport_mode_question(response2, failures, "New trip after completed trip")
+
+
 def _make_openai_routing_stub(agent_name: str, message: str, final_text: str):
     fake_fn = MagicMock()
     fake_fn.name = "delegate_task"
@@ -803,7 +1047,13 @@ async def main() -> None:
 
     await _verify_regression_scenarios(failures)
     await _verify_incomplete_request_dialog(failures)
+    await _verify_no_defaults_for_incomplete_request(failures)
+    await _verify_new_trip_resets_decision(failures)
     await _verify_multiturn_context(failures)
+    await _verify_multiturn_concrete_date(failures)
+    await _verify_combined_slot_fill_concrete_date(failures)
+    await _verify_complete_single_turn_concrete_date(failures)
+    await _verify_incomplete_month_triggers_followup(failures)
     await _verify_booking_intent_without_prior_plan(failures)
     await _verify_booking_intent_with_prior_plan(failures)
     await _verify_orchestrator_business_travel_routing(failures)
@@ -818,8 +1068,16 @@ async def main() -> None:
     print("Scenario B selected_offer_id: flight-1-with-transfers")
     print("Scenario C selected_offer_id: rail-muenster-1")
     print("Scenario D (morgen) selected_offer_id: rail-muenster-1")
+    print("'ich muss nach münchen': asks for missing slots, no defaults invented.")
+    print("New trip after completed trip: old decision reset, follow-up asked.")
+    print("Multi-turn (concrete date, 3 turns): step-by-step slot fill, plans rail-1.")
+    print("Combined slot fill (origin+date in one turn): plans rail-1.")
+    print("Complete single-turn with concrete date: plans directly, rail-1.")
+    print("'im Juni' alone: not a concrete date -- follow-up asked.")
+    print("Multi-turn dialog (relative date): slots filled across turns, plan on completion.")
     print("'buchen' without plan: returns German error, no crash.")
     print("'buchen' with prior plan: booking simulation response returned.")
+    print("Orchestrator routing: delegates correctly, pass-through verified.")
     print("Business travel unit verification passed.")
 
 

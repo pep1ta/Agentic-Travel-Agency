@@ -77,9 +77,14 @@ async def build_app() -> Starlette:
     (which builds A2A clients and loads MCP tools), then wires everything together
     into a Starlette app with A2A-compliant routes.
     """
-    registry_path = os.path.join("utilities", "a2a", "agent_registry.json") # Path to the registry file containing URLs of sub-agents
-    with open(registry_path) as f:
-        agent_urls: list[str] = json.load(f) # Load the list of sub-agent URLs from the registry file 
+    bta_url = os.environ.get("BUSINESS_TRAVEL_AGENT_URL", "").strip()
+    if bta_url:
+        agent_urls: list[str] = [bta_url]
+        logger.info(f"BusinessTravelAgent URL from BUSINESS_TRAVEL_AGENT_URL: {bta_url}")
+    else:
+        registry_path = os.path.join("utilities", "a2a", "agent_registry.json")
+        with open(registry_path) as f:
+            agent_urls: list[str] = json.load(f)
 
     orchestrator = OrchestratorAgent() # Initialize the orchestrator with the loaded agent cards
     await orchestrator.initialize(agent_urls=agent_urls) # Build A2A clients for sub-agents and load MCP tools during initialization

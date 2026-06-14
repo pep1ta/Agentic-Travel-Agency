@@ -1,0 +1,50 @@
+﻿**********************
+nStart der Windows PowerShell-Aufzeichnung
+Startzeit: 20260614213628
+Benutzername: MSI\basti
+RunAs-Benutzer: MSI\basti
+Konfigurationsname: 
+Computer: MSI (Microsoft Windows NT 10.0.26200.0)
+Hostanwendung: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass -EncodedCommand UwBlAHQALQBMAG8AYwBhAHQAaQBvAG4AIAAnAEMAOgBcAFUAcwBlAHIAcwBcAGIAYQBzAHQAaQBcAE8AbgBlAEQAcgBpAHYAZQBcAFAAZQByAHMA9gBoAG4AbABpAGMAaABlAHIAIABCAGUAcgBlAGkAYwBoAFwAVQBuAGkAXABNAGEAcwB0AGUAcgBhAHIAYgBlAGkAdABcAEIAVQBTAEkATgBFAFMAUwBUAFIAQQBWAEUATABBAEcARQBOAEMAWQBOAEUAVwAnAAoAJABoAG8AcwB0AC4AVQBJAC4AUgBhAHcAVQBJAC4AVwBpAG4AZABvAHcAVABpAHQAbABlACAAPQAgACcARgBsAGkAZwBoAHQAIABNAEMAUAAgAFMAZQByAHYAZQByACAAKABwAG8AcgB0ACAAOAAwADAANQApACcACgBTAHQAYQByAHQALQBUAHIAYQBuAHMAYwByAGkAcAB0ACAALQBQAGEAdABoACAAJwBDADoAXABVAHMAZQByAHMAXABiAGEAcwB0AGkAXABPAG4AZQBEAHIAaQB2AGUAXABQAGUAcgBzAPYAaABuAGwAaQBjAGgAZQByACAAQgBlAHIAZQBpAGMAaABcAFUAbgBpAFwATQBhAHMAdABlAHIAYQByAGIAZQBpAHQAXABCAFUAUwBJAE4ARQBTAFMAVABSAEEAVgBFAEwAQQBHAEUATgBDAFkATgBFAFcAXABvAHAAcwBcAGQAZQBtAG8AXABsAG8AZwBzAFwAZgBsAGkAZwBoAHQAXwBtAGMAcAAuAGwAbwBnACcAIAAtAEEAcABwAGUAbgBkAAoAVwByAGkAdABlAC0ASABvAHMAdAAgACgAJwA9AD0APQAgAEYAbABpAGcAaAB0ACAATQBDAFAAIABTAGUAcgB2AGUAcgAgACgAcABvAHIAdAAgADgAMAAwADUAKQAgAHMAdABhAHIAdABlAGQAOgAgACcAIAArACAAKABHAGUAdAAtAEQAYQB0AGUAIAAtAEYAbwByAG0AYQB0ACAAJwB5AHkAeQB5AC0ATQBNAC0AZABkACAASABIADoAbQBtADoAcwBzACcAKQAgACsAIAAnACAAPQA9AD0AJwApAAoAJgAgACcAQwA6AFwAVQBzAGUAcgBzAFwAYgBhAHMAdABpAFwATwBuAGUARAByAGkAdgBlAFwAUABlAHIAcwD2AGgAbgBsAGkAYwBoAGUAcgAgAEIAZQByAGUAaQBjAGgAXABVAG4AaQBcAE0AYQBzAHQAZQByAGEAcgBiAGUAaQB0AFwAQgBVAFMASQBOAEUAUwBTAFQAUgBBAFYARQBMAEEARwBFAE4AQwBZAE4ARQBXAFwALgB2AGUAbgB2AFwAUwBjAHIAaQBwAHQAcwBcAHAAeQB0AGgAbwBuAC4AZQB4AGUAJwAgAG0AYwBwAF8AcwBlAHIAdgBlAHIAcwAvAGYAbABpAGcAaAB0AF8AcwBlAHIAdgBlAHIALgBwAHkACgBXAHIAaQB0AGUALQBIAG8AcwB0ACAAKAAnAD0APQA9ACAARgBsAGkAZwBoAHQAIABNAEMAUAAgAFMAZQByAHYAZQByACAAKABwAG8AcgB0ACAAOAAwADAANQApACAAZQB4AGkAdABlAGQAOgAgACcAIAArACAAKABHAGUAdAAtAEQAYQB0AGUAIAAtAEYAbwByAG0AYQB0ACAAJwB5AHkAeQB5AC0ATQBNAC0AZABkACAASABIADoAbQBtADoAcwBzACcAKQAgACsAIAAnACAAPQA9AD0AJwApAAoAUwB0AG8AcAAtAFQAcgBhAG4AcwBjAHIAaQBwAHQA
+Prozess-ID: 29628
+PSVersion: 5.1.26100.8457
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8457
+BuildVersion: 10.0.26100.8457
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Die Aufzeichnung wurde gestartet. Die Ausgabedatei ist "C:\Users\basti\OneDrive\Persöhnlicher Bereich\Uni\Masterarbeit\BUSINESSTRAVELAGENCYNEW\ops\demo\logs\flight_mcp.log".
+=== Flight MCP Server (port 8005) started: 2026-06-14 21:36:28 ===
+INFO:     Started server process [34996]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8005 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49269 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49271 - "POST /messages/?session_id=c86e936e35a4423db87c35cf174ea816 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:49271 - "POST /messages/?session_id=c86e936e35a4423db87c35cf174ea816 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:49271 - "POST /messages/?session_id=c86e936e35a4423db87c35cf174ea816 HTTP/1.1" 202 Accepted
+[06/14/26 21:38:01] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:49271 - "POST /messages/?session_id=c86e936e35a4423db87c35cf174ea816 HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+INFO:     127.0.0.1:50465 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50467 - "POST /messages/?session_id=050188d96f564680819b042a6acfa8ad HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:50467 - "POST /messages/?session_id=050188d96f564680819b042a6acfa8ad HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:50467 - "POST /messages/?session_id=050188d96f564680819b042a6acfa8ad HTTP/1.1" 202 Accepted
+[06/14/26 21:38:14] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:50467 - "POST /messages/?session_id=050188d96f564680819b042a6acfa8ad HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+INFO:     127.0.0.1:62339 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62341 - "POST /messages/?session_id=b8f17638b66c498cad4997f35ffcc5a2 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:62341 - "POST /messages/?session_id=b8f17638b66c498cad4997f35ffcc5a2 HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:62341 - "POST /messages/?session_id=b8f17638b66c498cad4997f35ffcc5a2 HTTP/1.1" 202 Accepted
+[06/14/26 21:40:59] INFO     Processing request of type CallToolRequest                                    server.py:727
+INFO:     127.0.0.1:62341 - "POST /messages/?session_id=b8f17638b66c498cad4997f35ffcc5a2 HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type ListToolsRequest                                   server.py:727
+=== Flight MCP Server (port 8005) exited: 2026-06-14 21:58:12 ===
+**********************
+Ende der Windows PowerShell-Aufzeichnung
+Endzeit: 20260614215812
+**********************

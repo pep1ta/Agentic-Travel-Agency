@@ -5,9 +5,10 @@ import logging
 import uuid
 from typing import Any
 
+import httpx
 from openai import AsyncOpenAI
 
-from a2a.client import ClientFactory
+from a2a.client import ClientFactory, ClientConfig
 from a2a.types import TaskState, Message, Part, Role, SendMessageRequest, AgentInterface
 
 from utilities.blockchain.business_agent_registry_discovery import (
@@ -32,7 +33,8 @@ class OrchestratorAgent:
         Network calls are deferred to initialize() because __init__ cannot be async.
         """
         self._openai = AsyncOpenAI()  # reads OPENAI_API_KEY from env
-        self._factory = ClientFactory() # A2A client factory for building clients to sub-agents based on their cards
+        # 120s timeout: BTA delegation involves OpenAI + 3 provider A2A calls + SmartContractClient
+        self._factory = ClientFactory(ClientConfig(httpx_client=httpx.AsyncClient(timeout=120.0)))
         self._active_agent: dict[str, str] = {}  # context_id → agent_name when INPUT_REQUIRED
         self._last_agent: dict[str, str] = {}  # context_id -> last delegated agent
         self._last_business_travel_context_id: str | None = None
@@ -271,6 +273,10 @@ class OrchestratorAgent:
                     if delegate_context_id and delegate_context_id in self._active_agent:
                         messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
                         return result, True
+                    # Pass the delegate result directly — no second LLM call that would
+                    # summarize away alternatives, rejected options, and policy details.
+                    logger.info(f"Tool result for delegate_task (pass-through): {result[:200]}")
+                    return result, False
                 else:
                     result = f"Unknown tool: {name}"
 

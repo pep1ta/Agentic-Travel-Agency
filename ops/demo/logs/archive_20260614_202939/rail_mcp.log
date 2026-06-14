@@ -1,0 +1,30 @@
+﻿=== Rail MCP Server (port 8004) started: 2026-06-14 20:06:11 ===
+uv : INFO:     Started server process [32812]
+In Zeile:6 Zeichen:1
++ uv run python mcp_servers/rail_server.py 2>&1 | Tee-Object -FilePath  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:     Started server process [32812]:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8004 (Press CTRL+C to quit)
+INFO:     127.0.0.1:52499 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52501 - "POST /messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:52501 - "POST /messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:52501 - "POST /messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca HTTP/1.1" 202 Accepted
+[06/14/26 20:17:20] INFO     Processing request of type           server.py:727
+                             CallToolRequest                                   
+INFO:     127.0.0.1:52501 - "POST /messages/?session_id=5cbd58cecfde4b4aa5e91b143a29a8ca HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type           server.py:727
+                             ListToolsRequest                                  
+INFO:     127.0.0.1:52530 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52532 - "POST /messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:52532 - "POST /messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:52532 - "POST /messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b HTTP/1.1" 202 Accepted
+[06/14/26 20:17:31] INFO     Processing request of type           server.py:727
+                             CallToolRequest                                   
+INFO:     127.0.0.1:52532 - "POST /messages/?session_id=e6da1faae9c147a39f5e36c7dbc06a0b HTTP/1.1" 202 Accepted
+                    INFO     Processing request of type           server.py:727
+                             ListToolsRequest                                  
+=== Rail MCP Server (port 8004) exited: 2026-06-14 20:19:46 ===
