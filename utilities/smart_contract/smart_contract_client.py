@@ -1,255 +1,259 @@
-"""Policy mock for smart-contract-governed business travel planning.
+"""Blockchain adapter for BusinessTravelPolicy Smart Contract on Sepolia.
 
-This module intentionally uses plain dictionaries. The goal for version 1 is
-to make the policy rules easy to read before replacing this mock with a real
-Solidity smart contract later.
+This client calls the deployed BusinessTravelPolicy contract via Web3.
+It is NOT a policy engine — all policy decisions happen in Solidity.
+
+Responsibilities of this client:
+  - Load contract ABI and address from deployments/sepolia.json
+  - Convert Python offer dicts to Solidity TravelOffer tuples
+  - Call selectPolicyCompliantOffer() and per-offer validation functions via eth_call
+  - Decode the contract result into a structured Python dict
+
+What this client must NOT do:
+  - Implement any policy rules in Python
+  - Fall back to a local policy mock if the contract is unreachable
+  - Invent rejection reasons not provided by the contract
+
+Contract on Sepolia: BusinessTravelPolicy.sol
+Deployed at: see deployments/sepolia.json → contracts.businessTravelPolicy.address
+
+For unit tests without ALCHEMY_RPC_URL or Sepolia access:
+  use utilities/smart_contract/mock_smart_contract_client.py
 """
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+CHAIN_ID = 11155111
+DEPLOYMENT_FILE = Path("deployments/sepolia.json")
+ARTIFACT_FILE = Path(
+    "artifacts/contracts/BusinessTravelPolicy.sol/BusinessTravelPolicy.json"
+)
+
+# type(uint256).max — returned by contract when no offer qualifies
+_NO_SELECTION = 2**256 - 1
+
+# Encoding maps for BusinessTravelPolicy.sol constants:
+# MODE_RAIL=0, MODE_FLIGHT_WITH_TRANSFERS=1
+_MODE_ENCODING: dict[str, int] = {
+    "rail": 0,
+    "flight_with_transfers": 1,
+}
+# CLASS_SECOND=0, CLASS_FIRST=1, CLASS_ECONOMY=2, CLASS_BUSINESS=3
+_CLASS_ENCODING: dict[str, int] = {
+    "second_class": 0,
+    "first_class": 1,
+    "economy": 2,
+    "business": 3,
+}
+
+
+class SmartContractClientError(RuntimeError):
+    """Raised when the policy contract cannot be configured or reached."""
+
+
+def _load_local_env() -> None:
+    env_path = Path(".env")
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise SmartContractClientError(
+            f"BusinessTravelPolicy contract call failed: {name} ist nicht gesetzt. "
+            "Für Unit-Tests ohne Blockchain: MockSmartContractClient verwenden "
+            "(utilities/smart_contract/mock_smart_contract_client.py)."
+        )
+    return value
+
+
+def _read_json(path: Path) -> dict:
+    if not path.exists():
+        raise SmartContractClientError(
+            f"BusinessTravelPolicy contract call failed: {path} nicht gefunden."
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 class SmartContractClient:
-    """Simulates a smart contract that selects a policy-compliant travel offer.
+    """Blockchain adapter for BusinessTravelPolicy.sol on Sepolia.
 
-    Version 1 does not connect to a blockchain. It only simulates the behavior
-    of a smart contract locally in Python.
-
-    Important separation of responsibilities:
-    - Agents later collect and structure travel information.
-    - The LLM may understand language and explain results.
-    - The final policy-based selection happens here.
-
-    In a later version, this class could be replaced by a client that calls a
-    real Solidity smart contract with the same policy responsibilities.
+    All policy decisions are made by the Solidity contract.
+    This class only translates between Python dicts and Solidity ABI types.
     """
 
-    def __init__(self):
-        self._policy = {
-            "name": "Business Travel Policy V1",
-            "rail_preferred_max_duration_minutes": 480,
-            "max_budget": 500,
-            "min_provider_reputation": 70,
-            "min_arrival_buffer_minutes": 30,
-            "booking_requires_approval": True,
-            "selection_rule": "cheapest_valid",
-        }
+    def __init__(self) -> None:
+        self._web3 = None
+        self._contract = None
+        self._policy_address: str | None = None
 
-    def get_policy(self) -> dict:
-        """Returns the active business travel policy as a plain dictionary."""
-        return self._policy.copy()
+    def _ensure_loaded(self) -> None:
+        """Lazily initialises the Web3 connection and contract binding.
+
+        Called on first use so BusinessTravelAgent.__init__ can create a
+        SmartContractClient without requiring ALCHEMY_RPC_URL at import time.
+        The RPC URL is only needed when a contract call is actually made.
+        """
+        if self._contract is not None:
+            return
+
+        try:
+            from web3 import Web3
+        except ImportError as exc:
+            raise SmartContractClientError(
+                "BusinessTravelPolicy contract call failed: "
+                "Python-Dependency 'web3' fehlt. Run: pip install web3"
+            ) from exc
+
+        _load_local_env()
+        rpc_url = _require_env("ALCHEMY_RPC_URL")
+
+        deployment = _read_json(DEPLOYMENT_FILE)
+        raw_address = (
+            deployment.get("contracts", {})
+            .get("businessTravelPolicy", {})
+            .get("address")
+        )
+        if not raw_address:
+            raise SmartContractClientError(
+                "BusinessTravelPolicy contract call failed: "
+                "contracts.businessTravelPolicy.address fehlt in "
+                "deployments/sepolia.json."
+            )
+
+        artifact = _read_json(ARTIFACT_FILE)
+
+        web3 = Web3(Web3.HTTPProvider(rpc_url))
+        if not web3.is_connected():
+            raise SmartContractClientError(
+                "BusinessTravelPolicy contract call failed: RPC nicht erreichbar."
+            )
+
+        chain_id = web3.eth.chain_id
+        if chain_id != CHAIN_ID:
+            raise SmartContractClientError(
+                f"BusinessTravelPolicy contract call failed: "
+                f"Falsche Chain ID {chain_id}; erwartet {CHAIN_ID}."
+            )
+
+        self._web3 = web3
+        self._policy_address = Web3.to_checksum_address(raw_address)
+        self._contract = web3.eth.contract(
+            address=self._policy_address, abi=artifact["abi"]
+        )
 
     def select_policy_compliant_offer(self, offers: list[dict]) -> dict:
-        """Checks all offers against the policy and selects the winning offer.
+        """Calls BusinessTravelPolicy.selectPolicyCompliantOffer() via eth_call.
 
-        Rail is preferred when at least one valid rail offer exists with a
-        duration of 480 minutes or less. In that case, flight offers are still
-        evaluated for transparency, but they cannot win.
+        The Solidity function is `pure` — no transaction, no gas cost.
+        For each non-selected offer, isValidRailOffer() or isValidFlightOffer()
+        is called to distinguish valid alternatives from rejected offers.
+
+        Returns a structured dict with:
+          selected_offer, valid_alternatives, rejected_options,
+          considered_offers, decision_reason, decision_source,
+          contract_address, chain_id, booking_requires_approval.
         """
-        valid_rail_offers = []
-        valid_flight_offers = []
-        rejected_offers = []
-        considered_offers = list(offers)
+        self._ensure_loaded()
 
-        for offer in offers:
-            if offer.get("mode") == "rail":
-                reasons = self._rail_rejection_reasons(offer)
-                if reasons:
-                    rejected_offers.append(self._rejection(offer, reasons))
-                else:
-                    valid_rail_offers.append(offer)
-            elif offer.get("mode") == "flight_with_transfers":
-                reasons = self._flight_rejection_reasons(offer)
-                if reasons:
-                    rejected_offers.append(self._rejection(offer, reasons))
-                else:
-                    valid_flight_offers.append(offer)
-            else:
-                rejected_offers.append(self._rejection(
-                    offer,
-                    [f"Unsupported travel mode: {offer.get('mode')}."],
-                ))
+        encoded_offers = [self._encode_offer(o) for o in offers]
 
-        valid_preferred_rail = [
-            offer
-            for offer in valid_rail_offers
-            if offer.get("duration_minutes", 0) <= self._policy["rail_preferred_max_duration_minutes"]
-        ]
+        # pure view call — no gas, no wallet needed
+        selected_index: int = self._contract.functions.selectPolicyCompliantOffer(
+            encoded_offers
+        ).call()
 
-        if valid_preferred_rail:
-            selected_offer = self._cheapest(valid_preferred_rail)
-            valid_offers = valid_rail_offers + valid_flight_offers
-            valid_alternatives = self._valid_alternatives(valid_offers, selected_offer)
-            return {
-                "selected_offer": selected_offer,
-                "valid_offers": valid_preferred_rail,
-                "valid_alternatives": valid_alternatives,
-                "rejected_offers": rejected_offers,
-                "rejected_options": rejected_offers,
-                "considered_offers": considered_offers,
-                "decision_reason": (
-                    "A policy-compliant rail offer under 8 hours exists. "
-                    "Rail is preferred, so the cheapest valid rail offer wins."
-                ),
-                "booking_requires_approval": self._policy["booking_requires_approval"],
-            }
+        selected_offer = (
+            offers[selected_index] if selected_index != _NO_SELECTION else None
+        )
 
-        if valid_flight_offers:
-            selected_offer = self._cheapest(valid_flight_offers)
-            valid_offers = valid_rail_offers + valid_flight_offers
-            valid_alternatives = self._valid_alternatives(valid_offers, selected_offer)
-            return {
-                "selected_offer": selected_offer,
-                "valid_offers": valid_flight_offers,
-                "valid_alternatives": valid_alternatives,
-                "rejected_offers": rejected_offers,
-                "rejected_options": rejected_offers,
-                "considered_offers": considered_offers,
-                "decision_reason": (
-                    "No policy-compliant rail offer under 8 hours exists. "
-                    "Flight is allowed, so the cheapest valid flight offer wins."
-                ),
-                "booking_requires_approval": self._policy["booking_requires_approval"],
-            }
+        valid_alternatives: list[dict] = []
+        rejected_options: list[dict] = []
 
-        return {
-            "selected_offer": None,
-            "valid_offers": [],
-            "valid_alternatives": [],
-            "rejected_offers": rejected_offers,
-            "rejected_options": rejected_offers,
-            "considered_offers": considered_offers,
-            "decision_reason": "No policy-compliant travel offer was found.",
-            "booking_requires_approval": self._policy["booking_requires_approval"],
-        }
-
-    def _rail_rejection_reasons(self, offer: dict) -> list[str]:
-        """Returns all policy reasons why a rail offer is invalid."""
-        reasons = []
-
-        if offer.get("mode") != "rail":
-            reasons.append("Rail offer must have mode == 'rail'.")
-        if offer.get("travel_class") != "second_class":
-            reasons.append("Rail offer must be second class.")
-        if offer.get("total_price", 0) > self._policy["max_budget"]:
-            reasons.append("Rail offer exceeds the maximum budget.")
-        if offer.get("provider_reputation", 0) < self._policy["min_provider_reputation"]:
-            reasons.append("Rail provider reputation is too low.")
-        if offer.get("arrival_buffer_minutes", 0) < self._policy["min_arrival_buffer_minutes"]:
-            reasons.append("Rail arrival buffer is too short.")
-
-        return reasons
-
-    def _flight_rejection_reasons(self, offer: dict) -> list[str]:
-        """Returns all policy reasons why a flight offer is invalid."""
-        reasons = []
-
-        if offer.get("mode") != "flight_with_transfers":
-            reasons.append("Flight offer must have mode == 'flight_with_transfers'.")
-        if offer.get("travel_class") != "economy":
-            reasons.append("Flight offer must be economy class.")
-        if offer.get("transfers_included") is not True:
-            reasons.append("Flight offer must include transfers to and from the airport.")
-        if offer.get("total_price", 0) > self._policy["max_budget"]:
-            reasons.append("Flight offer exceeds the maximum budget.")
-        if offer.get("provider_reputation", 0) < self._policy["min_provider_reputation"]:
-            reasons.append("Flight provider reputation is too low.")
-        if offer.get("arrival_buffer_minutes", 0) < self._policy["min_arrival_buffer_minutes"]:
-            reasons.append("Flight arrival buffer is too short.")
-
-        return reasons
-
-    def _cheapest(self, offers: list[dict]) -> dict:
-        """Returns the cheapest offer. offer_id breaks ties deterministically."""
-        return min(offers, key=lambda offer: (offer.get("total_price", 0), offer.get("offer_id", "")))
-
-    def _valid_alternatives(self, valid_offers: list[dict], selected_offer: dict) -> list[dict]:
-        """Returns valid but non-selected offers with a simple explanation."""
-        selected_offer_id = selected_offer.get("offer_id")
-        alternatives = []
-
-        for offer in valid_offers:
-            if offer.get("offer_id") == selected_offer_id:
+        for i, offer in enumerate(offers):
+            if i == selected_index:
                 continue
+            if self._is_valid(offer):
+                valid_alternatives.append(offer)
+            else:
+                rejected_options.append({
+                    "offer_id": offer.get("offer_id", "(missing)"),
+                    # TODO: Extend BusinessTravelPolicy.sol to return reason-code
+                    # flags (REASON_OVER_BUDGET, REASON_WRONG_CLASS, etc.) so that
+                    # rejection reasons can be read from the contract rather than
+                    # described as a placeholder here.
+                    "reasons": [
+                        f"Rejected by BusinessTravelPolicyContract "
+                        f"at {self._policy_address}. "
+                        "Detailed reason codes are not yet available in the "
+                        "current contract version."
+                    ],
+                })
 
-            alternative = offer.copy()
-            alternative["not_selected_reasons"] = [
-                self._alternative_reason(offer, selected_offer)
-            ]
-            alternatives.append(alternative)
+        if selected_offer:
+            mode = selected_offer.get("mode")
+            if mode == "rail":
+                decision_reason = (
+                    "A policy-compliant rail offer under 8 hours exists. "
+                    "Rail is preferred. Cheapest valid rail selected by contract."
+                )
+            else:
+                decision_reason = (
+                    "No policy-compliant rail offer under 8 hours found. "
+                    "Cheapest valid flight-with-transfers selected by contract."
+                )
+        else:
+            decision_reason = "No policy-compliant travel offer found by contract."
 
-        return alternatives
-
-    def _alternative_reason(self, offer: dict, selected_offer: dict) -> str:
-        """Explains why a valid offer did not win."""
-        selected_mode = selected_offer.get("mode")
-
-        if offer.get("mode") == "rail" and offer.get("duration_minutes", 0) > self._policy["rail_preferred_max_duration_minutes"]:
-            return "Rail is valid but not under the 8-hour rail preference threshold."
-
-        if offer.get("total_price", 0) > selected_offer.get("total_price", 0):
-            if selected_mode == "rail":
-                return "More expensive than the selected valid rail offer."
-            if selected_mode == "flight_with_transfers":
-                return "More expensive than the selected valid flight offer."
-            return "More expensive than the selected valid offer."
-
-        if selected_mode == "rail" and offer.get("mode") == "flight_with_transfers":
-            return "Rail is preferred because a valid rail option under 8 hours exists."
-
-        return "Not the cheapest valid offer in the allowed policy category."
-
-    def _rejection(self, offer: dict, reasons: list[str]) -> dict:
-        """Builds a small rejection record for transparent policy explanations."""
         return {
-            "offer_id": offer.get("offer_id", "(missing offer_id)"),
-            "reasons": reasons,
+            "selected_offer": selected_offer,
+            "valid_alternatives": valid_alternatives,
+            "rejected_options": rejected_options,
+            "rejected_offers": rejected_options,  # backwards-compat alias
+            "considered_offers": list(offers),
+            "decision_reason": decision_reason,
+            "booking_requires_approval": True,
+            "decision_source": "BusinessTravelPolicyContract",
+            "contract_address": self._policy_address,
+            "chain_id": CHAIN_ID,
         }
 
+    def _is_valid(self, offer: dict) -> bool:
+        """Calls isValidRailOffer() or isValidFlightOffer() per offer via eth_call."""
+        encoded = self._encode_offer(offer)
+        mode = offer.get("mode")
+        if mode == "rail":
+            return bool(self._contract.functions.isValidRailOffer(encoded).call())
+        if mode == "flight_with_transfers":
+            return bool(self._contract.functions.isValidFlightOffer(encoded).call())
+        return False
 
-if __name__ == "__main__":
-    client = SmartContractClient()
+    @staticmethod
+    def _encode_offer(offer: dict) -> tuple:
+        """Converts a Python offer dict to a Solidity TravelOffer tuple.
 
-    example_offers = [
-        {
-            "offer_id": "rail-1",
-            "mode": "rail",
-            "provider": "RailProviderAgent",
-            "total_price": 119,
-            "duration_minutes": 395,
-            "travel_class": "second_class",
-            "provider_reputation": 82,
-            "arrival_buffer_minutes": 75,
-            "transfers_included": True,
-        },
-        {
-            "offer_id": "flight-1",
-            "mode": "flight_with_transfers",
-            "provider": "FlightProviderAgent",
-            "total_price": 99,
-            "duration_minutes": 210,
-            "travel_class": "economy",
-            "provider_reputation": 86,
-            "arrival_buffer_minutes": 60,
-            "transfers_included": True,
-        },
-        {
-            "offer_id": "rail-2",
-            "mode": "rail",
-            "provider": "RailProviderAgent",
-            "total_price": 89,
-            "duration_minutes": 420,
-            "travel_class": "first_class",
-            "provider_reputation": 90,
-            "arrival_buffer_minutes": 45,
-            "transfers_included": True,
-        },
-    ]
-
-    decision = client.select_policy_compliant_offer(example_offers)
-    selected_offer = decision["selected_offer"]
-
-    if selected_offer:
-        print(f"Selected offer: {selected_offer['offer_id']}")
-    else:
-        print("Selected offer: none")
-
-    print(f"Decision reason: {decision['decision_reason']}")
-    print(f"Booking requires approval: {decision['booking_requires_approval']}")
+        Field order matches the TravelOffer struct in BusinessTravelPolicy.sol:
+          (offerId, mode, totalPrice, durationMinutes, travelClass,
+           providerReputation, arrivalBufferMinutes, transfersIncluded)
+        """
+        return (
+            str(offer.get("offer_id", "")),
+            _MODE_ENCODING.get(str(offer.get("mode", "")), 0),
+            int(offer.get("total_price", 0)),
+            int(offer.get("duration_minutes", 0)),
+            _CLASS_ENCODING.get(str(offer.get("travel_class", "")), 0),
+            int(offer.get("provider_reputation", 0)),
+            int(offer.get("arrival_buffer_minutes", 0)),
+            bool(offer.get("transfers_included", False)),
+        )
