@@ -1,16 +1,22 @@
 # agents/rail/agent.py
 
-import ast
 import json
 import logging
-from typing import Any
+import os
 
-from mcp import ClientSession
-from mcp.client.sse import sse_client
+from utilities.provider_integration.mcp_tool_client import call_mcp_tool
 
 logger = logging.getLogger(__name__)
 
-RAIL_MCP_URL = "http://localhost:8004/sse"
+
+def _rail_mcp_url() -> str:
+    url = os.getenv("RAIL_MCP_URL")
+    if not url:
+        raise RuntimeError(
+            "RAIL_MCP_URL is not set. "
+            "Set it to the rail MCP server SSE endpoint (e.g. http://localhost:8004/sse)."
+        )
+    return url
 
 
 class RailProviderAgent:
@@ -52,33 +58,11 @@ class RailProviderAgent:
 
         return json.dumps(result, ensure_ascii=False), False
 
-    async def _call_mcp_tool(self, tool_name: str, args: dict) -> Any:
-        async with sse_client(RAIL_MCP_URL) as (r, w):
-            async with ClientSession(r, w) as session:
-                await session.initialize()
-                result = await session.call_tool(tool_name, args)
-                return self._parse_mcp_result(result)
-
-    def _parse_mcp_result(self, result) -> Any:
-        if not result.content:
-            return []
-        items = [self._parse_item(item.text) for item in result.content]
-        return items[0] if len(items) == 1 else items
-
-    def _parse_item(self, text: str) -> Any:
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            try:
-                return ast.literal_eval(text)
-            except (ValueError, SyntaxError):
-                return text
-
     async def _search_rail_options(
         self, origin: str, destination: str, appointment_time: str
     ) -> list[dict]:
         logger.info(f"RailProviderAgent: search {origin} -> {destination} at {appointment_time}")
-        return await self._call_mcp_tool("search_rail_options", {
+        return await call_mcp_tool(_rail_mcp_url(), "search_rail_options", {
             "origin": origin,
             "destination": destination,
             "appointment_time": appointment_time,
@@ -86,4 +70,4 @@ class RailProviderAgent:
 
     async def _book_rail_offer(self, offer_id: str) -> dict:
         logger.info(f"RailProviderAgent: book {offer_id}")
-        return await self._call_mcp_tool("book_rail_offer", {"offer_id": offer_id})
+        return await call_mcp_tool(_rail_mcp_url(), "book_rail_offer", {"offer_id": offer_id})

@@ -4,8 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const CHAIN_ID = 11155111;
-const DEPLOYMENT_FILE = path.join("deployments", "sepolia.json");
+const DEPLOYMENT_FILE = path.join("ops", "deployments", "sepolia.json");
 const ARTIFACT_FILE = path.join(
+  "build",
+  "hardhat",
   "artifacts",
   "contracts",
   "BusinessAgentRegistry.sol",

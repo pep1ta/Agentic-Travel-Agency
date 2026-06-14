@@ -80,5 +80,10 @@ export default defineConfig({
       },
     },
   },
+  paths: {
+    artifacts: "build/hardhat/artifacts",
+    cache: "build/hardhat/cache",
+    tests: "test/contracts",
+  },
   networks,
 });

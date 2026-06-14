@@ -195,7 +195,7 @@ class BusinessTravelAgent:
         flight_options = await self._search_flight_options(origin, destination, appointment_time)
         combined_flights: list[dict] = []
         for flight in flight_options:
-            if flight.get("travel_class") == "economy":
+            if flight.get("departure_airport") and flight.get("arrival_airport"):
                 transfers = await self._get_airport_transfers(
                     origin, destination,
                     flight["departure_airport"],
@@ -323,7 +323,7 @@ class BusinessTravelAgent:
             "- Never change selected offer, prices, durations, or provider names.\n"
             "- Never invent missing fields or add assumptions.\n"
             "- For 'policy_decision': State clearly that the selection was made by "
-            "SmartContractClient policy logic, not by you. Show: selected offer "
+            "the deployed BusinessTravelPolicy contract via SmartContractClient, not by you. Show: selected offer "
             "(offer_id, mode, price, duration), decision reason, valid alternatives "
             "with why they were not selected, rejected options with rejection reasons, "
             "booking approval status. End by stating no booking or payment has been executed.\n"

@@ -26,9 +26,9 @@ from pathlib import Path
 from typing import Any
 
 
-DEPLOYMENT_FILE = Path("deployments/sepolia.json")
+DEPLOYMENT_FILE = Path("ops/deployments/sepolia.json")
 ARTIFACT_FILE = Path(
-    "artifacts/contracts/BusinessAgentRegistry.sol/BusinessAgentRegistry.json"
+    "build/hardhat/artifacts/contracts/BusinessAgentRegistry.sol/BusinessAgentRegistry.json"
 )
 
 # Fallback endpoints for local-only demo (no Sepolia required).

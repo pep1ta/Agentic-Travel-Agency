@@ -12,33 +12,49 @@ A2A server is required. This verifies that each provider agent:
 
 import asyncio
 import json
+import os
 import sys
-import types
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import agents.flight.agent as _flight_module
+import agents.mobility.agent as _mobility_module
+import agents.rail.agent as _rail_module
 from agents.flight.agent import FlightProviderAgent
 from agents.mobility.agent import MobilityProviderAgent
 from agents.rail.agent import RailProviderAgent
 
 
 # ---------------------------------------------------------------------------
-# Stub helper — replaces _call_mcp_tool with a function returning fixed data
+# Stub helper — patches call_mcp_tool in the agent's module
 # ---------------------------------------------------------------------------
 
-def _stub_mcp(agent: Any, tool_results: dict[str, Any]) -> None:
-    """Replaces _call_mcp_tool on agent with a stub that returns predefined data."""
+_AGENT_MODULES = {
+    RailProviderAgent: (_rail_module, "RAIL_MCP_URL"),
+    FlightProviderAgent: (_flight_module, "FLIGHT_MCP_URL"),
+    MobilityProviderAgent: (_mobility_module, "MOBILITY_MCP_URL"),
+}
 
-    async def fake_call_mcp_tool(self, tool_name: str, args: dict) -> Any:
+
+def _stub_mcp(agent: Any, tool_results: dict[str, Any]) -> None:
+    """Patches call_mcp_tool in the agent's module with a stub returning predefined data.
+
+    Also sets the required MCP URL env var to a dummy value so the URL check passes.
+    """
+    module, url_env_var = _AGENT_MODULES[type(agent)]
+
+    async def fake_call_mcp_tool(url: str, tool_name: str, args: dict) -> Any:
         if tool_name not in tool_results:
             raise ValueError(f"Stub has no result for tool '{tool_name}'")
         return tool_results[tool_name]
 
-    agent._call_mcp_tool = types.MethodType(fake_call_mcp_tool, agent)
+    module.call_mcp_tool = fake_call_mcp_tool
+    os.environ.setdefault(url_env_var, "http://stub-mcp/sse")
 
 
 # ---------------------------------------------------------------------------

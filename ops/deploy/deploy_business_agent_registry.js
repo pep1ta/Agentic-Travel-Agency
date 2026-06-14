@@ -3,7 +3,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import fs from "node:fs";
 import path from "node:path";
 
-const DEPLOYMENT_FILE = path.join("deployments", "sepolia.json");
+const DEPLOYMENT_FILE = path.join("ops", "deployments", "sepolia.json");
 const SEPOLIA_CHAIN_ID = 11155111;
 
 // This script uses only the existing project environment variables:

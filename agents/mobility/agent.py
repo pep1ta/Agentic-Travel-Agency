@@ -1,16 +1,22 @@
 # agents/mobility/agent.py
 
-import ast
 import json
 import logging
-from typing import Any
+import os
 
-from mcp import ClientSession
-from mcp.client.sse import sse_client
+from utilities.provider_integration.mcp_tool_client import call_mcp_tool
 
 logger = logging.getLogger(__name__)
 
-MOBILITY_MCP_URL = "http://localhost:8006/sse"
+
+def _mobility_mcp_url() -> str:
+    url = os.getenv("MOBILITY_MCP_URL")
+    if not url:
+        raise RuntimeError(
+            "MOBILITY_MCP_URL is not set. "
+            "Set it to the mobility MCP server SSE endpoint (e.g. http://localhost:8006/sse)."
+        )
+    return url
 
 
 class MobilityProviderAgent:
@@ -52,28 +58,6 @@ class MobilityProviderAgent:
 
         return json.dumps(result, ensure_ascii=False), False
 
-    async def _call_mcp_tool(self, tool_name: str, args: dict) -> Any:
-        async with sse_client(MOBILITY_MCP_URL) as (r, w):
-            async with ClientSession(r, w) as session:
-                await session.initialize()
-                result = await session.call_tool(tool_name, args)
-                return self._parse_mcp_result(result)
-
-    def _parse_mcp_result(self, result) -> Any:
-        if not result.content:
-            return {}
-        items = [self._parse_item(item.text) for item in result.content]
-        return items[0] if len(items) == 1 else items
-
-    def _parse_item(self, text: str) -> Any:
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            try:
-                return ast.literal_eval(text)
-            except (ValueError, SyntaxError):
-                return text
-
     async def _get_airport_transfers(
         self,
         origin: str,
@@ -85,9 +69,10 @@ class MobilityProviderAgent:
             f"MobilityProviderAgent: get transfers {departure_airport} -> {arrival_airport} "
             f"for {origin} -> {destination}"
         )
-        return await self._call_mcp_tool("get_airport_transfers", {
+        result = await call_mcp_tool(_mobility_mcp_url(), "get_airport_transfers", {
             "origin": origin,
             "destination": destination,
             "departure_airport": departure_airport,
             "arrival_airport": arrival_airport,
         })
+        return result if isinstance(result, dict) else {}

@@ -15,10 +15,18 @@ from typing import Any
 
 
 CHAIN_ID = 11155111
-DEPLOYMENT_FILE = Path("deployments/sepolia.json")
+DEPLOYMENT_FILE = Path("ops/deployments/sepolia.json")
 ARTIFACT_FILE = Path(
-    "artifacts/contracts/BusinessTravelBooking.sol/BusinessTravelBooking.json"
+    "build/hardhat/artifacts/contracts/BusinessTravelBooking.sol/BusinessTravelBooking.json"
 )
+REGISTRY_ARTIFACT_FILE = Path(
+    "build/hardhat/artifacts/contracts/BusinessAgentRegistry.sol/BusinessAgentRegistry.json"
+)
+
+_MODE_TO_CAPABILITY: dict[str, str] = {
+    "rail": "rail",
+    "flight_with_transfers": "flight",
+}
 
 
 class BookingClientError(Exception):
@@ -84,7 +92,69 @@ def _load_contract_data() -> tuple[str, str, list[dict]]:
     return booking_address, policy_address, artifact["abi"]
 
 
-def _booking_values_from_offer(selected_offer: dict) -> dict[str, Any]:
+def _load_registry_data() -> tuple[str, list[dict]]:
+    deployment = _read_json(DEPLOYMENT_FILE)
+    registry_address = (
+        deployment.get("contracts", {})
+        .get("businessAgentRegistry", {})
+        .get("address")
+    )
+
+    if not registry_address:
+        raise BookingClientError(
+            "Sepolia Booking ist nicht konfiguriert: businessAgentRegistry fehlt."
+        )
+
+    registry_artifact = _read_json(REGISTRY_ARTIFACT_FILE)
+    return registry_address, registry_artifact["abi"]
+
+
+def _lookup_agent_id_by_capability(
+    web3: Any, registry_address: str, registry_abi: list, capability: str
+) -> int:
+    """Returns the first active on-chain agent ID for the given capability."""
+    from web3 import Web3  # already loaded at call site
+
+    registry = web3.eth.contract(
+        address=Web3.to_checksum_address(registry_address),
+        abi=registry_abi,
+    )
+    agent_ids = registry.functions.getAgentsByCapability(capability).call()
+
+    if not agent_ids:
+        raise BookingClientError(
+            f"Kein Agent für Capability '{capability}' im Registry registriert."
+        )
+
+    for agent_id in agent_ids:
+        agent = registry.functions.getAgent(agent_id).call()
+        # Agent struct: (agentId, agentURI, owner, active)
+        if agent[3]:
+            return int(agent_id)
+
+    raise BookingClientError(
+        f"Kein aktiver Agent für Capability '{capability}' im Registry gefunden."
+    )
+
+
+def _resolve_booking_agent_ids(
+    web3: Any, registry_address: str, registry_abi: list, mode: str
+) -> tuple[int, int]:
+    """Returns (business_travel_agent_id, provider_agent_id) from the on-chain registry."""
+    capability = _MODE_TO_CAPABILITY.get(mode)
+    if not capability:
+        raise BookingClientError(f"Unsupported booking mode: {mode}")
+
+    business_travel_agent_id = _lookup_agent_id_by_capability(
+        web3, registry_address, registry_abi, "business_travel"
+    )
+    provider_agent_id = _lookup_agent_id_by_capability(
+        web3, registry_address, registry_abi, capability
+    )
+    return business_travel_agent_id, provider_agent_id
+
+
+def _static_booking_values(selected_offer: dict) -> dict[str, Any]:
     selected_offer_id = selected_offer.get("id") or selected_offer.get("offer_id")
     mode = selected_offer.get("mode")
 
@@ -92,18 +162,15 @@ def _booking_values_from_offer(selected_offer: dict) -> dict[str, Any]:
         raise BookingClientError("Selected offer has no id or offer_id.")
 
     if mode == "rail":
-        provider_agent_id = 2
         amount_eth = "0.0001"
     elif mode == "flight_with_transfers":
-        provider_agent_id = 3
         amount_eth = "0.00015"
     else:
         raise BookingClientError(f"Unsupported booking mode: {mode}")
 
     return {
-        "business_travel_agent_id": 1,
-        "provider_agent_id": provider_agent_id,
         "selected_offer_id": selected_offer_id,
+        "mode": mode,
         "booking_uri": f"local://bookings/business-travel/{selected_offer_id}-demo",
         "amount_eth": amount_eth,
     }
@@ -142,6 +209,7 @@ def _load_web3_context():
         )
 
     booking_address, policy_address, abi = _load_contract_data()
+    registry_address, registry_abi = _load_registry_data()
     web3 = Web3(Web3.HTTPProvider(rpc_url))
 
     if not web3.is_connected():
@@ -156,27 +224,39 @@ def _load_web3_context():
         address=Web3.to_checksum_address(booking_address),
         abi=abi,
     )
+    policy_address = Web3.to_checksum_address(policy_address)
 
-    return web3, account, contract, booking_address, policy_address, abi
+    return web3, account, contract, booking_address, policy_address, abi, registry_address, registry_abi
 
 
 def _build_booking_transaction(selected_offer: dict):
     """Prepare Web3 objects and an unsigned createBooking transaction."""
-    web3, account, contract, _booking_address, policy_address, _abi = _load_web3_context()
-    booking_values = _booking_values_from_offer(selected_offer)
+    web3, account, contract, _booking_address, policy_address, _abi, registry_address, registry_abi = (
+        _load_web3_context()
+    )
+    static_values = _static_booking_values(selected_offer)
+    business_travel_agent_id, provider_agent_id = _resolve_booking_agent_ids(
+        web3, registry_address, registry_abi, static_values["mode"]
+    )
     nonce = web3.eth.get_transaction_count(account.address)
     tx = contract.functions.createBooking(
-        booking_values["business_travel_agent_id"],
-        booking_values["provider_agent_id"],
-        Web3.to_checksum_address(policy_address),
-        booking_values["selected_offer_id"],
-        booking_values["booking_uri"],
+        business_travel_agent_id,
+        provider_agent_id,
+        policy_address,
+        static_values["selected_offer_id"],
+        static_values["booking_uri"],
     ).build_transaction({
         "from": account.address,
-        "value": web3.to_wei(booking_values["amount_eth"], "ether"),
+        "value": web3.to_wei(static_values["amount_eth"], "ether"),
         "nonce": nonce,
         "chainId": CHAIN_ID,
     })
+
+    booking_values = {
+        "business_travel_agent_id": business_travel_agent_id,
+        "provider_agent_id": provider_agent_id,
+        **static_values,
+    }
 
     return web3, account, contract, booking_values, tx
 
@@ -187,7 +267,9 @@ def get_booking_id_from_transaction(transaction_hash: str) -> dict:
     This function does not wait for mining. If the receipt is not available yet,
     it returns status='pending'.
     """
-    web3, _account, contract, _booking_address, _policy_address, _abi = _load_web3_context()
+    web3, _account, contract, _booking_address, _policy_address, _abi, _reg_addr, _reg_abi = (
+        _load_web3_context()
+    )
     normalized_hash = _hex_with_prefix(transaction_hash)
     try:
         receipt = web3.eth.get_transaction_receipt(normalized_hash)
@@ -224,7 +306,9 @@ def get_booking_id_from_transaction(transaction_hash: str) -> dict:
 
 def complete_booking(booking_id: int) -> dict:
     """Send completeBooking(booking_id) and return the completion tx hash."""
-    web3, account, contract, _booking_address, _policy_address, _abi = _load_web3_context()
+    web3, account, contract, _booking_address, _policy_address, _abi, _reg_addr, _reg_abi = (
+        _load_web3_context()
+    )
     tx = contract.functions.completeBooking(booking_id).build_transaction({
         "from": account.address,
         "nonce": web3.eth.get_transaction_count(account.address),

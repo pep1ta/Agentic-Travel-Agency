@@ -26,15 +26,15 @@ $Services = @(
     },
     @{
         Name = "RailProviderAgent (port 10010)"
-        Command = "uv run python -m agents.rail"
+        Command = '$env:RAIL_MCP_URL = "http://localhost:8004/sse"; uv run python -m agents.rail'
     },
     @{
         Name = "FlightProviderAgent (port 10011)"
-        Command = "uv run python -m agents.flight"
+        Command = '$env:FLIGHT_MCP_URL = "http://localhost:8005/sse"; uv run python -m agents.flight'
     },
     @{
         Name = "MobilityProviderAgent (port 10012)"
-        Command = "uv run python -m agents.mobility"
+        Command = '$env:MOBILITY_MCP_URL = "http://localhost:8006/sse"; uv run python -m agents.mobility'
     },
     @{
         Name = "BusinessTravelAgent (port 10004)"

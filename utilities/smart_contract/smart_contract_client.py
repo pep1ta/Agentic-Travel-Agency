@@ -28,9 +28,9 @@ import os
 from pathlib import Path
 
 CHAIN_ID = 11155111
-DEPLOYMENT_FILE = Path("deployments/sepolia.json")
+DEPLOYMENT_FILE = Path("ops/deployments/sepolia.json")
 ARTIFACT_FILE = Path(
-    "artifacts/contracts/BusinessTravelPolicy.sol/BusinessTravelPolicy.json"
+    "build/hardhat/artifacts/contracts/BusinessTravelPolicy.sol/BusinessTravelPolicy.json"
 )
 
 # type(uint256).max — returned by contract when no offer qualifies
@@ -248,13 +248,50 @@ class SmartContractClient:
           (offerId, mode, totalPrice, durationMinutes, travelClass,
            providerReputation, arrivalBufferMinutes, transfersIncluded)
         """
+        def _require(field: str):
+            value = offer.get(field)
+            if value is None:
+                raise SmartContractClientError(
+                    f"Offer is missing required field '{field}' "
+                    f"(offer_id={offer.get('offer_id', '(missing)')!r})."
+                )
+            return value
+
+        offer_id = _require("offer_id")
+        if not str(offer_id).strip():
+            raise SmartContractClientError("Offer field 'offer_id' must not be empty.")
+
+        mode = str(_require("mode"))
+        if mode not in _MODE_ENCODING:
+            raise SmartContractClientError(
+                f"Unknown offer mode {mode!r}. "
+                f"Supported: {list(_MODE_ENCODING)}."
+            )
+
+        travel_class = str(_require("travel_class"))
+        if travel_class not in _CLASS_ENCODING:
+            raise SmartContractClientError(
+                f"Unknown travel_class {travel_class!r}. "
+                f"Supported: {list(_CLASS_ENCODING)}."
+            )
+
+        total_price = _require("total_price")
+        duration_minutes = _require("duration_minutes")
+        provider_reputation = _require("provider_reputation")
+        arrival_buffer_minutes = _require("arrival_buffer_minutes")
+
+        if mode == "flight_with_transfers" and offer.get("transfers_included") is None:
+            raise SmartContractClientError(
+                f"Flight offer {offer_id!r} is missing required field 'transfers_included'."
+            )
+
         return (
-            str(offer.get("offer_id", "")),
-            _MODE_ENCODING.get(str(offer.get("mode", "")), 0),
-            int(offer.get("total_price", 0)),
-            int(offer.get("duration_minutes", 0)),
-            _CLASS_ENCODING.get(str(offer.get("travel_class", "")), 0),
-            int(offer.get("provider_reputation", 0)),
-            int(offer.get("arrival_buffer_minutes", 0)),
+            str(offer_id),
+            _MODE_ENCODING[mode],
+            int(total_price),
+            int(duration_minutes),
+            _CLASS_ENCODING[travel_class],
+            int(provider_reputation),
+            int(arrival_buffer_minutes),
             bool(offer.get("transfers_included", False)),
         )
