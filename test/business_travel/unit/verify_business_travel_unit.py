@@ -597,14 +597,21 @@ async def _verify_booking_intent_with_prior_plan(failures: list[str]) -> None:
         "After planning, state.selected_offer should be set before booking.",
         failures,
     )
-    if state.selected_offer is None:
+    _require(
+        state.policy_decision is not None,
+        "After planning, state.policy_decision should be set before booking.",
+        failures,
+    )
+    if state.policy_decision is None:
         return
 
     fake_booking_result = {
         "selectedOfferId": state.selected_offer.get("offer_id", "?"),
         "providerAgentId": "RailProviderAgent",
-        "amountEth": "0.001",
-        "status": "simulated",
+        "amountEth": "0.0001",
+        "selectedIndex": state.policy_decision.get("selected_index", 0),
+        "policyVerified": True,
+        "status": "submitted",
         "transactionHash": "0xtest123",
         "etherscanUrl": "https://sepolia.etherscan.io/tx/0xtest123",
     }
@@ -620,7 +627,7 @@ async def _verify_booking_intent_with_prior_plan(failures: list[str]) -> None:
     agent._simulate_provider_booking = types.MethodType(fake_simulate_booking, agent)
 
     with patch(
-        "agents.business_travel.agent.submit_booking_for_offer",
+        "agents.business_travel.agent.submit_verified_booking_for_decision",
         return_value=fake_booking_result,
     ):
         response_text, input_required = await agent.invoke(

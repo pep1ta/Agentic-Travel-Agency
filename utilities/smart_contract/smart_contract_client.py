@@ -219,6 +219,7 @@ class SmartContractClient:
 
         return {
             "selected_offer": selected_offer,
+            "selected_index": selected_index if selected_index != _NO_SELECTION else None,
             "valid_alternatives": valid_alternatives,
             "rejected_options": rejected_options,
             "rejected_offers": rejected_options,  # backwards-compat alias
@@ -295,3 +296,8 @@ class SmartContractClient:
             int(arrival_buffer_minutes),
             bool(offer.get("transfers_included", False)),
         )
+
+
+def encode_offer_for_abi(offer: dict) -> tuple:
+    """Module-level export of SmartContractClient._encode_offer for use by BookingClient."""
+    return SmartContractClient._encode_offer(offer)

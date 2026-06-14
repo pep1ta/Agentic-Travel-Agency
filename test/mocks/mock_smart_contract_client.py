@@ -72,10 +72,12 @@ class MockSmartContractClient:
 
         if preferred_rail:
             selected = self._cheapest(preferred_rail)
+            selected_index = considered.index(selected)
             all_valid = valid_rail + valid_flight
             alternatives = self._alternatives(all_valid, selected)
             return {
                 "selected_offer": selected,
+                "selected_index": selected_index,
                 "valid_alternatives": alternatives,
                 "rejected_options": rejected,
                 "rejected_offers": rejected,
@@ -90,10 +92,12 @@ class MockSmartContractClient:
 
         if valid_flight:
             selected = self._cheapest(valid_flight)
+            selected_index = considered.index(selected)
             all_valid = valid_rail + valid_flight
             alternatives = self._alternatives(all_valid, selected)
             return {
                 "selected_offer": selected,
+                "selected_index": selected_index,
                 "valid_alternatives": alternatives,
                 "rejected_options": rejected,
                 "rejected_offers": rejected,
@@ -108,6 +112,7 @@ class MockSmartContractClient:
 
         return {
             "selected_offer": None,
+            "selected_index": None,
             "valid_alternatives": [],
             "rejected_options": rejected,
             "rejected_offers": rejected,

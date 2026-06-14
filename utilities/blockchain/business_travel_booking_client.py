@@ -350,6 +350,81 @@ def submit_booking_for_offer(selected_offer: dict) -> dict:
     }
 
 
+def submit_verified_booking_for_decision(decision: dict) -> dict:
+    """Submit a Sepolia booking via createVerifiedBooking with on-chain policy check.
+
+    Encodes all considered_offers as TravelOffer tuples, passes selected_index from
+    the decision dict, and calls createVerifiedBooking on the contract. The contract
+    independently re-runs selectPolicyCompliantOffer and reverts if the index mismatches.
+    No local policy logic — all policy evaluation happens on-chain.
+    """
+    from utilities.smart_contract.smart_contract_client import encode_offer_for_abi
+
+    considered_offers = decision.get("considered_offers")
+    selected_index = decision.get("selected_index")
+    selected_offer = decision.get("selected_offer")
+
+    if not considered_offers:
+        raise BookingClientError("Decision has no considered_offers.")
+    if selected_index is None:
+        raise BookingClientError(
+            "Decision has no selected_index (no policy-compliant offer found)."
+        )
+    if not selected_offer:
+        raise BookingClientError("Decision has no selected_offer.")
+
+    mode = selected_offer.get("mode")
+    offer_id = selected_offer.get("offer_id") or selected_offer.get("id")
+
+    if not offer_id:
+        raise BookingClientError("Selected offer has no offer_id.")
+    if mode == "rail":
+        amount_eth = "0.0001"
+    elif mode == "flight_with_transfers":
+        amount_eth = "0.00015"
+    else:
+        raise BookingClientError(f"Unsupported booking mode: {mode}")
+
+    encoded_offers = [encode_offer_for_abi(o) for o in considered_offers]
+    booking_uri = f"local://bookings/business-travel/{offer_id}-verified"
+
+    web3, account, contract, _booking_address, policy_address, _abi, registry_address, registry_abi = (
+        _load_web3_context()
+    )
+    business_travel_agent_id, provider_agent_id = _resolve_booking_agent_ids(
+        web3, registry_address, registry_abi, mode
+    )
+    nonce = web3.eth.get_transaction_count(account.address)
+    tx = contract.functions.createVerifiedBooking(
+        business_travel_agent_id,
+        provider_agent_id,
+        policy_address,
+        encoded_offers,
+        selected_index,
+        booking_uri,
+    ).build_transaction({
+        "from": account.address,
+        "value": web3.to_wei(amount_eth, "ether"),
+        "nonce": nonce,
+        "chainId": CHAIN_ID,
+    })
+
+    signed_tx = account.sign_transaction(tx)
+    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    transaction_hash = _hex_with_prefix(tx_hash)
+
+    return {
+        "selectedOfferId": offer_id,
+        "providerAgentId": provider_agent_id,
+        "amountEth": amount_eth,
+        "selectedIndex": selected_index,
+        "policyVerified": True,
+        "transactionHash": transaction_hash,
+        "etherscanUrl": f"https://sepolia.etherscan.io/tx/{transaction_hash}",
+        "status": "submitted",
+    }
+
+
 def create_booking_for_offer(selected_offer: dict) -> dict:
     """Create a Sepolia booking simulation for one selected offer.
 

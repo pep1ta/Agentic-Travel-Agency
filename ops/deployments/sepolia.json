@@ -11,10 +11,10 @@
       "deploymentTx": "0x46546745324fc0f247bcb016b0890701e046e510214aa001d61ebdcc73c41b5b"
     },
     "businessTravelBooking": {
-      "address": "0x39ba3Ec5B5f816a22Be3cdffd410e3416a07CC5C",
-      "deploymentTx": "0x8a2b44bbc85d6871a802a289f64d38c7feabd479f0dc5876259ae9a01af0c659"
+      "address": "0x5930522d5fc4fdf75c8c7803aD575216e83543f0",
+      "deploymentTx": "0x63721c070b1da4cbdbbde7360701e7db779307a6832128bca0e0d661d51a4b85"
     }
   },
   "deployer": "0x669cADd0E9379B54fA690cE8FA9DDdE88F5a1E0D",
-  "updatedAt": "2026-06-13T13:27:02.635Z"
+  "updatedAt": "2026-06-14T15:23:37.324Z"
 }

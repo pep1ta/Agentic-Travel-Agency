@@ -14,7 +14,7 @@ from utilities.blockchain.business_agent_registry_discovery import (
 )
 from utilities.blockchain.business_travel_booking_client import (
     BookingClientError,
-    submit_booking_for_offer,
+    submit_verified_booking_for_decision,
 )
 from utilities.smart_contract.smart_contract_client import SmartContractClient
 
@@ -31,6 +31,7 @@ class TravelPlanningState:
         self.time_mode: str = "unknown"
         self.language: str = "de"
         self.selected_offer: dict | None = None
+        self.policy_decision: dict | None = None
 
 
 class BusinessTravelAgent:
@@ -402,14 +403,14 @@ class BusinessTravelAgent:
 
         # Booking intent
         if intent == "book_selected_offer":
-            if not state.selected_offer:
+            if not state.policy_decision:
                 response = await self._render_user_response_with_llm(
                     "booking_without_plan", lang, {}
                 )
                 return response, False
 
             try:
-                booking_result = submit_booking_for_offer(state.selected_offer)
+                booking_result = submit_verified_booking_for_decision(state.policy_decision)
             except BookingClientError as exc:
                 response = await self._render_user_response_with_llm(
                     "planning_error", lang, {"error": str(exc)}
@@ -450,6 +451,7 @@ class BusinessTravelAgent:
             logger.info("Calling SmartContractClient.select_policy_compliant_offer")
             decision = self._smart_contract.select_policy_compliant_offer(offers)
             state.selected_offer = decision.get("selected_offer")
+            state.policy_decision = decision
             logger.info(
                 "SmartContractClient selected: "
                 f"{state.selected_offer.get('offer_id') if state.selected_offer else 'None'}"
@@ -457,6 +459,7 @@ class BusinessTravelAgent:
         except Exception as exc:
             logger.error(f"Travel planning failed: {exc}")
             state.selected_offer = None
+            state.policy_decision = None
             response = await self._render_user_response_with_llm(
                 "planning_error", lang,
                 {
