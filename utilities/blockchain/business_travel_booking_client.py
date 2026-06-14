@@ -154,28 +154,6 @@ def _resolve_booking_agent_ids(
     return business_travel_agent_id, provider_agent_id
 
 
-def _static_booking_values(selected_offer: dict) -> dict[str, Any]:
-    selected_offer_id = selected_offer.get("id") or selected_offer.get("offer_id")
-    mode = selected_offer.get("mode")
-
-    if not selected_offer_id:
-        raise BookingClientError("Selected offer has no id or offer_id.")
-
-    if mode == "rail":
-        amount_eth = "0.0001"
-    elif mode == "flight_with_transfers":
-        amount_eth = "0.00015"
-    else:
-        raise BookingClientError(f"Unsupported booking mode: {mode}")
-
-    return {
-        "selected_offer_id": selected_offer_id,
-        "mode": mode,
-        "booking_uri": f"local://bookings/business-travel/{selected_offer_id}-demo",
-        "amount_eth": amount_eth,
-    }
-
-
 def _hex_with_prefix(value: Any) -> str:
     """Return an Ethereum hex string with 0x prefix."""
     hex_value = value.hex() if hasattr(value, "hex") else str(value)
@@ -227,38 +205,6 @@ def _load_web3_context():
     policy_address = Web3.to_checksum_address(policy_address)
 
     return web3, account, contract, booking_address, policy_address, abi, registry_address, registry_abi
-
-
-def _build_booking_transaction(selected_offer: dict):
-    """Prepare Web3 objects and an unsigned createBooking transaction."""
-    web3, account, contract, _booking_address, policy_address, _abi, registry_address, registry_abi = (
-        _load_web3_context()
-    )
-    static_values = _static_booking_values(selected_offer)
-    business_travel_agent_id, provider_agent_id = _resolve_booking_agent_ids(
-        web3, registry_address, registry_abi, static_values["mode"]
-    )
-    nonce = web3.eth.get_transaction_count(account.address)
-    tx = contract.functions.createBooking(
-        business_travel_agent_id,
-        provider_agent_id,
-        policy_address,
-        static_values["selected_offer_id"],
-        static_values["booking_uri"],
-    ).build_transaction({
-        "from": account.address,
-        "value": web3.to_wei(static_values["amount_eth"], "ether"),
-        "nonce": nonce,
-        "chainId": CHAIN_ID,
-    })
-
-    booking_values = {
-        "business_travel_agent_id": business_travel_agent_id,
-        "provider_agent_id": provider_agent_id,
-        **static_values,
-    }
-
-    return web3, account, contract, booking_values, tx
 
 
 def get_booking_id_from_transaction(transaction_hash: str) -> dict:
@@ -320,30 +266,6 @@ def complete_booking(booking_id: int) -> dict:
 
     return {
         "bookingId": int(booking_id),
-        "transactionHash": transaction_hash,
-        "etherscanUrl": f"https://sepolia.etherscan.io/tx/{transaction_hash}",
-        "status": "submitted",
-    }
-
-
-def submit_booking_for_offer(selected_offer: dict) -> dict:
-    """Submit a Sepolia booking transaction without waiting for confirmation.
-
-    This non-blocking variant is used by the A2A dialog path so the user gets a
-    tx hash quickly and the request does not time out while waiting for mining.
-    """
-    web3, account, _contract, booking_values, tx = _build_booking_transaction(
-        selected_offer
-    )
-
-    signed_tx = account.sign_transaction(tx)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    transaction_hash = _hex_with_prefix(tx_hash)
-
-    return {
-        "selectedOfferId": booking_values["selected_offer_id"],
-        "providerAgentId": booking_values["provider_agent_id"],
-        "amountEth": booking_values["amount_eth"],
         "transactionHash": transaction_hash,
         "etherscanUrl": f"https://sepolia.etherscan.io/tx/{transaction_hash}",
         "status": "submitted",
@@ -422,35 +344,4 @@ def submit_verified_booking_for_decision(decision: dict) -> dict:
         "transactionHash": transaction_hash,
         "etherscanUrl": f"https://sepolia.etherscan.io/tx/{transaction_hash}",
         "status": "submitted",
-    }
-
-
-def create_booking_for_offer(selected_offer: dict) -> dict:
-    """Create a Sepolia booking simulation for one selected offer.
-
-    The caller must pass the offer selected by SmartContractClient policy
-    logic. This function does not decide which offer should be booked.
-    """
-    web3, account, contract, booking_values, tx = _build_booking_transaction(
-        selected_offer
-    )
-
-    signed_tx = account.sign_transaction(tx)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
-    events = contract.events.BookingCreated().process_receipt(receipt)
-
-    if not events:
-        raise BookingClientError("BookingCreated event wurde nicht gefunden.")
-
-    booking_id = events[0]["args"]["bookingId"]
-    transaction_hash = _hex_with_prefix(receipt["transactionHash"])
-
-    return {
-        "bookingId": int(booking_id),
-        "selectedOfferId": booking_values["selected_offer_id"],
-        "providerAgentId": booking_values["provider_agent_id"],
-        "amountEth": booking_values["amount_eth"],
-        "transactionHash": transaction_hash,
-        "etherscanUrl": f"https://sepolia.etherscan.io/tx/{transaction_hash}",
     }

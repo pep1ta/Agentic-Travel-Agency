@@ -12,6 +12,8 @@ ops/
     discover_business_provider_agents.js # Diagnostik: prüft A2A-URIs der Provider-Agenten
   booking/      # Buchungsoperationen
     check_and_complete_booking.py  # Legacy: prüft createBooking-Tx und ruft completeBooking
+                                   # Offizieller Pfad: submit_verified_booking_for_decision
+                                   #   -> BusinessTravelBooking.createVerifiedBooking (policyVerified=true)
   demo/         # Demo-Start und Health-Check
   deployments/
     sepolia.json  # Deployment-Adressen (BusinessAgentRegistry, Policy, Booking)

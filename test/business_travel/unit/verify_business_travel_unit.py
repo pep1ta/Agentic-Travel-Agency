@@ -10,7 +10,7 @@ Does NOT require:
 What this test proves:
   - Multi-turn dialog slot filling (LLM methods stubbed for reproducibility)
   - SmartContractClient policy decisions (deterministic offer bundles)
-  - Booking flow handling (submit_booking_for_offer patched)
+  - Booking flow handling (submit_verified_booking_for_decision patched)
   - Orchestrator routing logic
 
 BusinessTravelAgent.__init__ calls discover_all_provider_endpoints(use_fallback=False)
@@ -1039,12 +1039,65 @@ async def _verify_orchestrator_business_travel_routing(failures: list[str]) -> N
 
 
 # ---------------------------------------------------------------------------
+# Booking path regression
+# ---------------------------------------------------------------------------
+
+def _verify_booking_path_is_verified(failures: list[str]) -> None:
+    """Ensures the agent source code uses the verified booking path exclusively.
+
+    Checks at the source-code level that:
+    - submit_verified_booking_for_decision is imported in agent.py
+    - submit_booking_for_offer does not appear in agent.py (dead code removed)
+    - create_booking_for_offer does not appear in agent.py
+    - create_booking_for_offer does not appear in business_travel_booking_client.py
+    - submit_booking_for_offer does not appear in business_travel_booking_client.py
+    """
+    agent_source_path = Path(__file__).resolve().parents[3] / "agents" / "business_travel" / "agent.py"
+    booking_client_path = Path(__file__).resolve().parents[3] / "utilities" / "blockchain" / "business_travel_booking_client.py"
+
+    agent_source = agent_source_path.read_text(encoding="utf-8")
+    booking_client_source = booking_client_path.read_text(encoding="utf-8")
+
+    _require(
+        "submit_verified_booking_for_decision" in agent_source,
+        "agents/business_travel/agent.py does not import submit_verified_booking_for_decision.",
+        failures,
+    )
+    _require(
+        "submit_booking_for_offer" not in agent_source,
+        "agents/business_travel/agent.py still references submit_booking_for_offer (legacy unverified path).",
+        failures,
+    )
+    _require(
+        "create_booking_for_offer" not in agent_source,
+        "agents/business_travel/agent.py still references create_booking_for_offer (legacy unverified path).",
+        failures,
+    )
+    _require(
+        "submit_booking_for_offer" not in booking_client_source,
+        "business_travel_booking_client.py still defines submit_booking_for_offer (should have been deleted).",
+        failures,
+    )
+    _require(
+        "create_booking_for_offer" not in booking_client_source,
+        "business_travel_booking_client.py still defines create_booking_for_offer (should have been deleted).",
+        failures,
+    )
+    _require(
+        "submit_verified_booking_for_decision" in booking_client_source,
+        "business_travel_booking_client.py does not define submit_verified_booking_for_decision.",
+        failures,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 async def main() -> None:
     failures: list[str] = []
 
+    _verify_booking_path_is_verified(failures)
     await _verify_regression_scenarios(failures)
     await _verify_incomplete_request_dialog(failures)
     await _verify_no_defaults_for_incomplete_request(failures)
@@ -1064,6 +1117,7 @@ async def main() -> None:
             print(f"- {failure}")
         raise AssertionError(f"{len(failures)} business travel unit verification checks failed.")
 
+    print("Booking path: agent uses submit_verified_booking_for_decision exclusively.")
     print("Scenario A selected_offer_id: rail-1")
     print("Scenario B selected_offer_id: flight-1-with-transfers")
     print("Scenario C selected_offer_id: rail-muenster-1")
