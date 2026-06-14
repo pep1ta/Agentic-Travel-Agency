@@ -1,22 +1,25 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1-inspired",
   "name": "RailProviderAgent",
-  "description": "Rail provider mock agent for business travel rail options.",
+  "description": "Rail provider A2A agent for business travel rail options. Wraps mcp_servers/rail_server.py behind an A2A interface.",
   "image": "",
   "capabilities": [
     "rail"
   ],
   "services": [
     {
-      "name": "MCP",
-      "endpoint": "mcp://localhost:8004",
+      "name": "A2A",
+      "endpoint": "http://localhost:10010",
+      "protocol": "a2a",
       "version": "0.3.0"
     }
   ],
   "registrations": [
     {
       "agentId": 2,
-      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292"
+      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292",
+      "onChainAgentURI": "http://localhost:10010",
+      "updateTx": "0xcb40aacf0cf724c6d922256b0fafd10ccda8c4818c8c6e5b987b066bbf80ce57"
     }
   ],
   "supportedTrust": [

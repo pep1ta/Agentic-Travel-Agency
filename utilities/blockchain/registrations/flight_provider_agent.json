@@ -1,22 +1,25 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1-inspired",
   "name": "FlightProviderAgent",
-  "description": "Flight provider mock agent for business travel flight options.",
+  "description": "Flight provider A2A agent for business travel flight options. Wraps mcp_servers/flight_server.py behind an A2A interface.",
   "image": "",
   "capabilities": [
     "flight"
   ],
   "services": [
     {
-      "name": "MCP",
-      "endpoint": "mcp://localhost:8005",
+      "name": "A2A",
+      "endpoint": "http://localhost:10011",
+      "protocol": "a2a",
       "version": "0.3.0"
     }
   ],
   "registrations": [
     {
       "agentId": 3,
-      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292"
+      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292",
+      "onChainAgentURI": "http://localhost:10011",
+      "updateTx": "0xe91451ae8d2af08e35d30a9fd01d40f6f1e0b7a6de9dfe13826d6d2dd5e61e95"
     }
   ],
   "supportedTrust": [

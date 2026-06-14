@@ -1,22 +1,25 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1-inspired",
   "name": "MobilityProviderAgent",
-  "description": "Mobility provider mock agent for airport transfer information.",
+  "description": "Airport transfer provider A2A agent for business travel mobility options. Wraps mcp_servers/mobility_server.py behind an A2A interface.",
   "image": "",
   "capabilities": [
     "mobility"
   ],
   "services": [
     {
-      "name": "MCP",
-      "endpoint": "mcp://localhost:8006",
+      "name": "A2A",
+      "endpoint": "http://localhost:10012",
+      "protocol": "a2a",
       "version": "0.3.0"
     }
   ],
   "registrations": [
     {
       "agentId": 4,
-      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292"
+      "agentRegistry": "eip155:11155111:0xa9FcE74b16aFf4c192fd33B1048BDfD1224f2292",
+      "onChainAgentURI": "http://localhost:10012",
+      "updateTx": "0x3c4c2d7d5e8f9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b"
     }
   ],
   "supportedTrust": [

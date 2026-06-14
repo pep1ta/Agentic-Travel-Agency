@@ -13,27 +13,39 @@ Set-Location $ProjectRoot
 
 $Services = @(
     @{
-        Name = "Rail MCP Server"
+        Name = "Rail MCP Server (port 8004)"
         Command = "uv run python mcp_servers/rail_server.py"
     },
     @{
-        Name = "Flight MCP Server"
+        Name = "Flight MCP Server (port 8005)"
         Command = "uv run python mcp_servers/flight_server.py"
     },
     @{
-        Name = "Mobility MCP Server"
+        Name = "Mobility MCP Server (port 8006)"
         Command = "uv run python mcp_servers/mobility_server.py"
     },
     @{
-        Name = "BusinessTravelAgent"
+        Name = "RailProviderAgent (port 10010)"
+        Command = "uv run python -m agents.rail"
+    },
+    @{
+        Name = "FlightProviderAgent (port 10011)"
+        Command = "uv run python -m agents.flight"
+    },
+    @{
+        Name = "MobilityProviderAgent (port 10012)"
+        Command = "uv run python -m agents.mobility"
+    },
+    @{
+        Name = "BusinessTravelAgent (port 10004)"
         Command = "uv run python -m agents.business_travel"
     },
     @{
-        Name = "OrchestratorAgent"
+        Name = "OrchestratorAgent (port 10002)"
         Command = "uv run python -m agents.orchestrator"
     },
     @{
-        Name = "CustomerAgent"
+        Name = "CustomerAgent (port 10000)"
         Command = "uv run python -m agents.customer"
     }
 )
