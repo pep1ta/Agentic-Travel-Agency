@@ -18,7 +18,7 @@ Contract on Sepolia: BusinessTravelPolicy.sol
 Deployed at: see deployments/sepolia.json → contracts.businessTravelPolicy.address
 
 For unit tests without ALCHEMY_RPC_URL or Sepolia access:
-  use utilities/smart_contract/mock_smart_contract_client.py
+  use test/mocks/mock_smart_contract_client.py
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def _require_env(name: str) -> str:
         raise SmartContractClientError(
             f"BusinessTravelPolicy contract call failed: {name} ist nicht gesetzt. "
             "Für Unit-Tests ohne Blockchain: MockSmartContractClient verwenden "
-            "(utilities/smart_contract/mock_smart_contract_client.py)."
+            "(test/mocks/mock_smart_contract_client.py)."
         )
     return value
 
@@ -113,7 +113,8 @@ class SmartContractClient:
         except ImportError as exc:
             raise SmartContractClientError(
                 "BusinessTravelPolicy contract call failed: "
-                "Python-Dependency 'web3' fehlt. Run: pip install web3"
+                "Python-Dependency 'web3' fehlt. Run: pip install web3. "
+                "Für Unit-Tests: test/mocks/mock_smart_contract_client.py verwenden."
             ) from exc
 
         _load_local_env()

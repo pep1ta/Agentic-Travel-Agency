@@ -1,4 +1,4 @@
-# Run with: uv run python scripts/verify_business_travel_unit.py
+# Run with: uv run python test/business_travel/unit/verify_business_travel_unit.py
 
 """Unit-level verification for the business travel prototype.
 
@@ -18,7 +18,7 @@ which requires ALCHEMY_RPC_URL. In unit tests, this is patched away via _make_ag
 which injects deterministic endpoint values without any blockchain access.
 
 For the registry-backed E2E test (requires ALCHEMY_RPC_URL + running provider agents):
-  uv run python scripts/verify_business_travel.py
+  uv run python test/business_travel/integration/verify_business_travel.py
 """
 
 import asyncio
@@ -28,13 +28,13 @@ import types
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from agents.business_travel.agent import BusinessTravelAgent
 from agents.orchestrator.agent import OrchestratorAgent
-from utilities.smart_contract.mock_smart_contract_client import MockSmartContractClient
+from test.mocks.mock_smart_contract_client import MockSmartContractClient
 
 
 # ---------------------------------------------------------------------------

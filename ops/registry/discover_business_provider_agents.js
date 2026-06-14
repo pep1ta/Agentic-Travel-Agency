@@ -15,7 +15,7 @@
  * No wallet or private key needed — read-only Sepolia calls only.
  *
  * USAGE:
- *   node scripts/discover_business_provider_agents.js
+ *   node ops/registry/discover_business_provider_agents.js
  *
  * REQUIRED ENV:
  *   ALCHEMY_RPC_URL — Sepolia JSON-RPC endpoint
@@ -122,7 +122,7 @@ function uriStatus(uri, expectedUri) {
     return `MISMATCH — expected ${expectedUri} (${type})`;
   }
   if (type === "legacy-local") {
-    return `NEEDS-UPDATE — run register_business_provider_agents.js (${type})`;
+    return `NEEDS-UPDATE — run ops/registry/register_business_provider_agents.js (${type})`;
   }
   if (type === "MCP-endpoint") {
     return `NEEDS-UPDATE — MCP endpoint, should be A2A`;
@@ -138,7 +138,7 @@ async function printProviderCapability(registry, capability) {
   console.log(`Capability: ${capability}  (expected URI: ${expectedUri})`);
 
   if (agentIds.length === 0) {
-    console.log("  NOT REGISTERED — run register_business_provider_agents.js");
+    console.log("  NOT REGISTERED — run ops/registry/register_business_provider_agents.js");
     return false;
   }
 
@@ -206,10 +206,10 @@ async function main() {
       `Needs update: ${notReady.join(", ")}.`
     );
     console.log(
-      "Run: node scripts/register_business_provider_agents.js --dry-run"
+      "Run: node ops/registry/register_business_provider_agents.js --dry-run"
     );
     console.log(
-      "Then: node scripts/register_business_provider_agents.js"
+      "Then: node ops/registry/register_business_provider_agents.js"
     );
   }
 }

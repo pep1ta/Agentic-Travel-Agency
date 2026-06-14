@@ -1,4 +1,4 @@
-# Run with: uv run python scripts/verify_business_travel.py
+# Run with: uv run python test/business_travel/integration/verify_business_travel.py
 
 """End-to-end registry verification for the business travel prototype.
 
@@ -21,7 +21,7 @@ If ALCHEMY_RPC_URL is missing or provider agents are not running, this test fail
 with a clear error. There is no automatic fallback to local URLs.
 
 For dialog and slot-filling unit tests (no blockchain or provider agents required):
-  uv run python scripts/verify_business_travel_unit.py
+  uv run python test/business_travel/unit/verify_business_travel_unit.py
 """
 
 import asyncio
@@ -29,7 +29,7 @@ import os
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -78,7 +78,7 @@ def _check_env() -> None:
             "\nverify_business_travel.py erfordert echte Blockchain-Registry-Verbindung.\n"
             "Setze ALCHEMY_RPC_URL in .env oder als Umgebungsvariable.\n"
             "\nFür lokale Unit-Tests ohne Registry und ohne Provider-Agenten:\n"
-            "  uv run python scripts/verify_business_travel_unit.py\n"
+            "  uv run python test/business_travel/unit/verify_business_travel_unit.py\n"
         )
 
 

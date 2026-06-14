@@ -23,13 +23,13 @@
  * USAGE:
  *
  *   Dry run — read-only, shows planned operations, sends NO transactions:
- *     node scripts/register_business_provider_agents.js --dry-run
+ *     node ops/registry/register_business_provider_agents.js --dry-run
  *
  *   Actual update — sends three Sepolia transactions:
- *     node scripts/register_business_provider_agents.js
+ *     node ops/registry/register_business_provider_agents.js
  *
  *   Verify after update (read-only):
- *     node scripts/discover_business_provider_agents.js
+ *     node ops/registry/discover_business_provider_agents.js
  *
  * REQUIRED ENV (in .env or environment):
  *   ALCHEMY_RPC_URL     — Sepolia JSON-RPC endpoint
@@ -264,7 +264,7 @@ async function main() {
   }
 
   console.log(
-    "\nDone. Verify with: node scripts/discover_business_provider_agents.js"
+    "\nDone. Verify with: node ops/registry/discover_business_provider_agents.js"
   );
 }
 

@@ -1,14 +1,14 @@
 # Starts the local Business Travel demo services in separate PowerShell windows.
 #
 # Run from the project root:
-# powershell -ExecutionPolicy Bypass -File scripts/start_business_travel_demo.ps1
+# powershell -ExecutionPolicy Bypass -File ops/demo/start_business_travel_demo.ps1
 #
 # If your Windows setup blocks new PowerShell windows, copy the commands below
 # and run them manually in separate terminals.
 
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $ProjectRoot
 
 $Services = @(

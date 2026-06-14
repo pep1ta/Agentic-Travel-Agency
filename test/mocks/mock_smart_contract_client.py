@@ -5,10 +5,11 @@ connection is available or desirable. It re-implements the same policy rules tha
 are encoded in BusinessTravelPolicy.sol so that unit tests remain deterministic.
 
 IMPORTANT:
-  - This mock is ONLY for verify_business_travel_unit.py.
+  - This mock is ONLY for test/business_travel/unit/verify_business_travel_unit.py.
   - It must NOT be imported by agents/business_travel/agent.py or any production code.
-  - It must NOT be used in verify_business_travel.py (the E2E integration test).
-  - The real SmartContractClient in smart_contract_client.py must be used in production.
+  - It must NOT be used in test/business_travel/integration/verify_business_travel.py.
+  - The real SmartContractClient in utilities/smart_contract/smart_contract_client.py
+    must be used in production.
 
 Policy rules here mirror BusinessTravelPolicy.sol exactly.
 If the Solidity contract is updated, this mock must be updated in sync.
