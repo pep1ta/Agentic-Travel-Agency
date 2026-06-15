@@ -370,23 +370,97 @@ class BusinessTravelAgent:
         payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
 
         system_prompt = (
-            f"You are the response formatter for a business travel planning system.\n"
-            f"Generate a clear, structured response in language='{language}'.\n"
-            f"Response type: '{response_type}'.\n\n"
-            "STRICT RULES — never violate these:\n"
-            "- Use ONLY the facts in the payload below. Invent nothing.\n"
-            "- Never change selected offer, prices, durations, or provider names.\n"
-            "- Never invent missing fields or add assumptions.\n"
-            "- For 'policy_decision': State clearly that the selection was made by "
-            "the deployed BusinessTravelPolicy contract via SmartContractClient, not by you. Show: selected offer "
-            "(offer_id, mode, price, duration), decision reason, valid alternatives "
-            "with why they were not selected, rejected options with rejection reasons, "
-            "booking approval status. End by stating no booking or payment has been executed.\n"
-            "- For 'booking_submitted': State clearly this is a Sepolia testnet simulation "
-            "and no real travel booking was made.\n"
-            "- For 'booking_without_plan': Ask the user to plan a trip first.\n"
-            "- For 'planning_error': Report the error and suggest checking provider agents.\n"
-            "- Keep the response concise and well-structured with clear headings.\n\n"
+            f"You are the response formatter for an enterprise business travel planning system.\n"
+            f"Generate a response in language='{language}', response type='{response_type}'.\n\n"
+
+            "STRICT FORMATTING RULES — never violate:\n"
+            "- PLAIN TEXT ONLY. No **bold**, *italic*, # headers, or any other Markdown.\n"
+            "- Section titles: ALL-CAPS on their own line, followed by a blank line.\n"
+            "- Separate sections with a blank line.\n"
+            "- Use actual German umlauts: ä, ö, ü, Ä, Ö, Ü, ß. Never write ae/oe/ue.\n"
+            "- Use ONLY facts from the payload. Invent nothing.\n"
+            "- Never change offer IDs, prices, durations, or provider names.\n"
+            "- Label offer IDs as 'Angebot:'. Never write 'offer_id:'.\n\n"
+
+            "FOR RESPONSE TYPE 'policy_decision' — output exactly these six sections in order:\n\n"
+
+            "Section 1 — POLICY-ENTSCHEIDUNG\n"
+            "Write: 'Die Auswahl wurde vom BusinessTravelPolicy Smart Contract via SmartContractClient "
+            "getroffen, nicht von mir.'\n\n"
+
+            "Section 2 — AUSGEWÄHLTE OPTION\n"
+            "Always show: Angebot (offer_id), Typ (human-readable), Preis (total_price EUR), "
+            "Dauer (duration_minutes Minuten).\n"
+            "For mode='rail': Typ='Bahn'. Also show Anbieter-Agent (provider field), "
+            "Betreiber (operator if present), Reiseklasse.\n"
+            "For mode='flight_with_transfers': Typ='Kombiniertes Flug- und Transferangebot'.\n"
+            "  Write 'Zusammengesetzt aus:' with two bullet lines:\n"
+            "    - FlightProviderAgent: Flugangebot\n"
+            "    - MobilityProviderAgent: Transferinformationen\n"
+            "  Write 'Gesamt:' block with Gesamtpreis (total_price EUR) and "
+            "Gesamtdauer (duration_minutes Minuten).\n"
+            "  Write 'Bausteine:' with exactly 3 numbered entries:\n"
+            "    1. Transfer zum Abflughafen\n"
+            "       Anbieter-Agent: MobilityProviderAgent\n"
+            "       Route: transfer_details.origin_to_airport.from -> "
+            "transfer_details.origin_to_airport.to  (if present)\n"
+            "       Preis: transfer_details.origin_to_airport.price EUR  (if present)\n"
+            "       Dauer: transfer_details.origin_to_airport.duration_minutes Minuten  (if present)\n"
+            "    2. Flug\n"
+            "       Anbieter-Agent: FlightProviderAgent\n"
+            "       Betreiber/Carrier: carrier field\n"
+            "       Route: departure_airport -> arrival_airport  (if present)\n"
+            "       Flugpreis: nicht separat ausgewiesen\n"
+            "    3. Transfer am Zielort\n"
+            "       Anbieter-Agent: MobilityProviderAgent\n"
+            "       Route: transfer_details.airport_to_destination.from -> "
+            "transfer_details.airport_to_destination.to  (if present)\n"
+            "       Preis: transfer_details.airport_to_destination.price EUR  (if present)\n"
+            "       Dauer: transfer_details.airport_to_destination.duration_minutes Minuten  (if present)\n"
+            "  Skip any sub-field line if the value is absent from the payload.\n\n"
+
+            "Section 3 — ENTSCHEIDUNGSGRUND\n"
+            "Restate decision_reason from payload naturally in the response language. "
+            "Do not claim the contract returns detailed reason codes.\n\n"
+
+            "Section 4 — ALTERNATIVEN\n"
+            "List each entry in valid_alternatives numbered.\n"
+            "For each: Angebot (offer_id), Typ, Preis (EUR), Dauer (Minuten).\n"
+            "For flight_with_transfers: add 'Zusammengesetzt aus: FlightProviderAgent + MobilityProviderAgent'.\n"
+            "End each with: 'Einordnung: Policy-konform, aber nicht ausgewählt.'\n"
+            "If list is empty: write 'Keine gültigen Alternativen.'\n\n"
+
+            "Section 5 — ABGELEHNTE OPTIONEN\n"
+            "List each entry in rejected_options numbered.\n"
+            "Look up the offer_id in considered_offers to get full offer details "
+            "(mode, total_price, duration_minutes, provider).\n"
+            "For each: Angebot (offer_id), Typ (human-readable from mode), "
+            "Preis (total_price EUR from considered_offers), "
+            "Dauer (duration_minutes Minuten from considered_offers).\n"
+            "End each entry with: 'Status: Vom BusinessTravelPolicy Contract abgelehnt. "
+            "Detaillierte Reason Codes werden in der aktuellen Contract-Version nicht zurückgegeben.'\n"
+            "If list is empty: write 'Keine abgelehnten Optionen.'\n\n"
+
+            "Section 6 — NÄCHSTER SCHRITT\n"
+            "Write: 'Es wurde noch keine Buchung erstellt. Wenn Sie diese Option simuliert "
+            "und policy-verifiziert buchen möchten, schreiben Sie: buchen'\n\n"
+
+            "FOR RESPONSE TYPE 'booking_submitted':\n"
+            "Write these three sentences first (exactly as shown, with correct German umlauts):\n"
+            "  'Es wurde keine echte Reisebuchung und keine echte Zahlung durchgeführt.'\n"
+            "  'Eine Sepolia-Testnet-Transaktion für eine simulierte, policy-verifizierte "
+            "Buchung wurde erstellt.'\n"
+            "  'Der Provider-Agent hat eine simulierte Buchungsbestätigung zurückgegeben.'\n"
+            "Then show from payload: Angebot (selectedOfferId), Betrag (amountEth ETH), "
+            "Transaktions-Hash (transactionHash), Etherscan-Link (etherscanUrl), "
+            "Policy-Verifiziert (policyVerified).\n\n"
+
+            "FOR RESPONSE TYPE 'booking_without_plan':\n"
+            "Ask the user to first submit a travel request so a policy-compliant offer can be selected.\n\n"
+
+            "FOR RESPONSE TYPE 'planning_error':\n"
+            "Report the error from payload and suggest verifying that all provider agents are running.\n\n"
+
             f"Payload:\n{payload_json}"
         )
 
@@ -395,7 +469,7 @@ class BusinessTravelAgent:
                 model="gpt-4o-mini",
                 messages=[{"role": "system", "content": system_prompt}],
                 temperature=0,
-                max_tokens=800,
+                max_tokens=1400,
             )
             return response.choices[0].message.content or "(leer)"
         except Exception as exc:

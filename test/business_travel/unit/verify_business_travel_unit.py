@@ -98,10 +98,19 @@ FORBIDDEN_ENGLISH_IN_GERMAN_RESPONSES = [
 ]
 
 DECISION_SECTIONS = [
-    "Ausgewählte Option",
-    "Gültige Alternativen",
-    "Abgelehnte Optionen",
-    "Buchung und Zahlung",
+    "AUSGEWÄHLTE OPTION",
+    "ENTSCHEIDUNGSGRUND",
+    "ABGELEHNTE OPTIONEN",
+    "NÄCHSTER SCHRITT",
+]
+
+FLIGHT_WITH_TRANSFERS_REQUIRED_CONTENT = [
+    "Kombiniertes Flug- und Transferangebot",
+    "FlightProviderAgent",
+    "MobilityProviderAgent",
+    "Bausteine",
+    "Transfer zum Abflughafen",
+    "Transfer am Zielort",
 ]
 
 SCENARIOS = [
@@ -116,14 +125,14 @@ SCENARIOS = [
         "expected_offer_id": "flight-1-with-transfers",
     },
     {
-        "name": "Muenster to Munich",
-        "query": "Montag um 10 Uhr von Muenster nach Muenchen",
-        "expected_offer_id": "rail-muenster-1",
+        "name": "Dortmund to Munich",
+        "query": "Montag um 10 Uhr von Dortmund nach Muenchen",
+        "expected_offer_id": "rail-1",
     },
     {
-        "name": "Morgen Muenster to Munich",
-        "query": "morgen 10 uhr von münster nach münchen",
-        "expected_offer_id": "rail-muenster-1",
+        "name": "Morgen Dortmund to Munich",
+        "query": "morgen 10 uhr von dortmund nach münchen",
+        "expected_offer_id": "rail-1",
     },
 ]
 
@@ -242,10 +251,10 @@ def _offer_bundle_for_request(request: dict) -> list[dict]:
             },
         ]
 
-    if "muenster" in origin and "muenchen" in destination:
+    if "dortmund" in origin and "muenchen" in destination:
         return [
             {
-                "offer_id": "rail-muenster-1",
+                "offer_id": "rail-1",
                 "mode": "rail",
                 "provider": "RailProviderAgent",
                 "operator": "InterCity Railways",
@@ -293,14 +302,14 @@ def _attach_llm_stubs(agent: BusinessTravelAgent) -> None:
             "origin": "Dortmund", "destination": "Wien",
             "appointment_time": "16.06.2026 10:00", "time_mode": "arrival",
         },
-        "montag um 10 uhr von muenster nach muenchen": {
+        "montag um 10 uhr von dortmund nach muenchen": {
             "intent": "plan_trip", "language": "de",
-            "origin": "Muenster", "destination": "München",
+            "origin": "Dortmund", "destination": "München",
             "appointment_time": "16.06.2026 10:00", "time_mode": "departure",
         },
-        "morgen 10 uhr von münster nach münchen": {
+        "morgen 10 uhr von dortmund nach münchen": {
             "intent": "plan_trip", "language": "de",
-            "origin": "Münster", "destination": "München",
+            "origin": "Dortmund", "destination": "München",
             "appointment_time": "15.06.2026 10:00", "time_mode": "departure",
         },
         # Complete with explicit concrete date
@@ -333,10 +342,10 @@ def _attach_llm_stubs(agent: BusinessTravelAgent) -> None:
             "intent": "slot_fill", "language": "de",
             "origin": "Dortmund",
         },
-        "von münster": {
+        "von Dortmund": {
             # Answering "Von wo reisen Sie?" — only origin
             "intent": "slot_fill", "language": "de",
-            "origin": "Münster",
+            "origin": "Dortmund",
         },
         "am 24.06.2026 um 10 uhr": {
             # Answering "Wann?" — only concrete date+time
@@ -422,19 +431,109 @@ def _attach_llm_stubs(agent: BusinessTravelAgent) -> None:
         if response_type == "policy_decision":
             selected = payload.get("selected_offer") or {}
             offer_id = selected.get("offer_id", "?")
+            mode = selected.get("mode", "")
             alts = payload.get("valid_alternatives", [])
             rejected = payload.get("rejected_options", payload.get("rejected_offers", []))
-            alt_ids = ", ".join(o.get("offer_id", "?") for o in alts) if alts else "Keine."
-            rej_ids = ", ".join(o.get("offer_id", "?") for o in rejected) if rejected else "Keine."
+            considered = payload.get("considered_offers", [])
+            decision_reason = payload.get("decision_reason", "")
+            considered_by_id = {o.get("offer_id"): o for o in considered}
+
+            # AUSGEWÄHLTE OPTION block
+            if mode == "flight_with_transfers":
+                type_label = "Kombiniertes Flug- und Transferangebot"
+                td = selected.get("transfer_details", {})
+                ota = td.get("origin_to_airport", {})
+                atd = td.get("airport_to_destination", {})
+                option_block = (
+                    f"Angebot: {offer_id}\n"
+                    f"Typ: {type_label}\n"
+                    f"Preis: {selected.get('total_price', '?')} EUR\n"
+                    f"Dauer: {selected.get('duration_minutes', '?')} Minuten\n"
+                    "Zusammengesetzt aus:\n"
+                    "- FlightProviderAgent: Flugangebot\n"
+                    "- MobilityProviderAgent: Transferinformationen\n\n"
+                    f"Gesamt:\n"
+                    f"Gesamtpreis: {selected.get('total_price', '?')} EUR\n"
+                    f"Gesamtdauer: {selected.get('duration_minutes', '?')} Minuten\n\n"
+                    "Bausteine:\n"
+                    "1. Transfer zum Abflughafen\n"
+                    "   Anbieter-Agent: MobilityProviderAgent\n"
+                    + (f"   Route: {ota.get('from', '?')} -> {ota.get('to', '?')}\n" if ota else "")
+                    + (f"   Preis: {ota.get('price', '?')} EUR\n" if ota else "")
+                    + (f"   Dauer: {ota.get('duration_minutes', '?')} Minuten\n" if ota else "")
+                    + "2. Flug\n"
+                    "   Anbieter-Agent: FlightProviderAgent\n"
+                    f"   Betreiber/Carrier: {selected.get('carrier', '?')}\n"
+                    f"   Route: {selected.get('departure_airport', '?')} -> {selected.get('arrival_airport', '?')}\n"
+                    "   Flugpreis: nicht separat ausgewiesen\n"
+                    "3. Transfer am Zielort\n"
+                    "   Anbieter-Agent: MobilityProviderAgent\n"
+                    + (f"   Route: {atd.get('from', '?')} -> {atd.get('to', '?')}\n" if atd else "")
+                    + (f"   Preis: {atd.get('price', '?')} EUR\n" if atd else "")
+                    + (f"   Dauer: {atd.get('duration_minutes', '?')} Minuten\n" if atd else "")
+                )
+            else:
+                type_label = "Bahn"
+                option_block = (
+                    f"Angebot: {offer_id}\n"
+                    f"Typ: {type_label}\n"
+                    f"Anbieter-Agent: {selected.get('provider', '?')}\n"
+                    f"Preis: {selected.get('total_price', '?')} EUR\n"
+                    f"Dauer: {selected.get('duration_minutes', '?')} Minuten\n"
+                )
+
+            # ALTERNATIVEN block
+            alt_lines = []
+            for i, a in enumerate(alts, 1):
+                a_mode = a.get("mode", "")
+                a_type = "Kombiniertes Flug- und Transferangebot" if a_mode == "flight_with_transfers" else "Bahn"
+                line = (
+                    f"{i}. Angebot: {a.get('offer_id', '?')}\n"
+                    f"   Typ: {a_type}\n"
+                    f"   Preis: {a.get('total_price', '?')} EUR\n"
+                    f"   Dauer: {a.get('duration_minutes', '?')} Minuten\n"
+                    "   Einordnung: Policy-konform, aber nicht ausgewählt."
+                )
+                alt_lines.append(line)
+            alt_section = "\n".join(alt_lines) if alt_lines else "Keine gültigen Alternativen."
+
+            # ABGELEHNTE OPTIONEN block — look up full details from considered_offers
+            rej_lines = []
+            for i, r in enumerate(rejected, 1):
+                r_id = r.get("offer_id", "?")
+                full = considered_by_id.get(r_id, {})
+                r_mode = full.get("mode", "")
+                r_type = "Kombiniertes Flug- und Transferangebot" if r_mode == "flight_with_transfers" else "Bahn"
+                line = (
+                    f"{i}. Angebot: {r_id}\n"
+                    f"   Typ: {r_type}\n"
+                    f"   Preis: {full.get('total_price', '?')} EUR\n"
+                    f"   Dauer: {full.get('duration_minutes', '?')} Minuten\n"
+                    "   Status: Vom BusinessTravelPolicy Contract abgelehnt. "
+                    "Detaillierte Reason Codes werden in der aktuellen Contract-Version nicht zurückgegeben."
+                )
+                rej_lines.append(line)
+            rej_section = "\n".join(rej_lines) if rej_lines else "Keine abgelehnten Optionen."
+
             return (
                 "Geschäftsreise-Entscheidung\n"
-                "===========================\n"
-                "Finale Auswahl durch SmartContractClient-Policy-Logik.\n"
-                f"Ausgewählte Option: {offer_id}\n"
-                f"Gültige Alternativen: {alt_ids}\n"
-                f"Abgelehnte Optionen: {rej_ids}\n"
-                "Buchung und Zahlung: Genehmigungspflichtig. Noch nicht ausgeführt."
+                "===========================\n\n"
+                "POLICY-ENTSCHEIDUNG\n\n"
+                "Die Auswahl wurde vom BusinessTravelPolicy Smart Contract via SmartContractClient "
+                "getroffen, nicht von mir.\n\n"
+                "AUSGEWÄHLTE OPTION\n\n"
+                f"{option_block}\n"
+                "ENTSCHEIDUNGSGRUND\n\n"
+                f"{decision_reason}\n\n"
+                "ALTERNATIVEN\n\n"
+                f"{alt_section}\n\n"
+                "ABGELEHNTE OPTIONEN\n\n"
+                f"{rej_section}\n\n"
+                "NÄCHSTER SCHRITT\n\n"
+                "Es wurde noch keine Buchung erstellt. Wenn Sie diese Option simuliert "
+                "und policy-verifiziert buchen möchten, schreiben Sie: buchen"
             )
+
         if response_type == "booking_without_plan":
             return (
                 "Bitte planen Sie zuerst eine Reise, damit eine "
@@ -445,8 +544,14 @@ def _attach_llm_stubs(agent: BusinessTravelAgent) -> None:
         if response_type == "booking_submitted":
             return (
                 "Buchungs-/Zahlungssimulation eingereicht\n"
-                f"Ausgewählte Option: {payload.get('selectedOfferId', '?')}\n"
-                "Sepolia-Testnet-Simulation. Keine echte Buchung ausgeführt."
+                "Es wurde keine echte Reisebuchung und keine echte Zahlung durchgeführt.\n"
+                "Eine Sepolia-Testnet-Transaktion für eine simulierte, policy-verifizierte "
+                "Buchung wurde erstellt.\n"
+                "Der Provider-Agent hat eine simulierte Buchungsbestätigung zurückgegeben.\n"
+                f"Angebot: {payload.get('selectedOfferId', '?')}\n"
+                f"Betrag: {payload.get('amountEth', '?')} ETH\n"
+                f"Transaktions-Hash: {payload.get('transactionHash', '?')}\n"
+                f"Policy-Verifiziert: {payload.get('policyVerified', '?')}"
             )
         return f"Antwort: {response_type}"
 
@@ -584,7 +689,7 @@ async def _verify_multiturn_context(failures: list[str]) -> None:
 
     turns = [
         "ich muss nach münchen fahren",
-        "von münster",
+        "von dortmund",
         "montag um 12 uhr",
     ]
 
@@ -609,8 +714,18 @@ async def _verify_multiturn_context(failures: list[str]) -> None:
         failures,
     )
     _require(
-        "rail-muenster-1" in response_text,
-        "Multi-turn dialog did not select rail-muenster-1.",
+        "rail-1" in response_text,
+        "Multi-turn dialog did not select rail-1.",
+        failures,
+    )
+    _require(
+        "Angebot:" in response_text,
+        "Multi-turn dialog response must use 'Angebot:' as the offer ID label.",
+        failures,
+    )
+    _require(
+        "Es wurde noch keine Buchung erstellt" in response_text,
+        "Multi-turn dialog response must contain 'Es wurde noch keine Buchung erstellt'.",
         failures,
     )
     _assert_decision_sections(response_text, failures, "Multi-turn dialog")
@@ -695,10 +810,18 @@ async def _verify_booking_intent_with_prior_plan(failures: list[str]) -> None:
         failures,
     )
     _require(
-        "Simulation" in response_text
-        or "simulation" in response_text.lower()
-        or "Sepolia" in response_text,
-        "'buchen' with a plan should mention simulation/Sepolia in response.",
+        "Sepolia-Testnet-Transaktion" in response_text or "Sepolia" in response_text,
+        "'buchen' with a plan must mention Sepolia-Testnet-Transaktion.",
+        failures,
+    )
+    _require(
+        "keine echte Reisebuchung" in response_text or "keine echte Buchung" in response_text,
+        "'buchen' with a plan must state no real booking was made.",
+        failures,
+    )
+    _require(
+        "keine echte Zahlung" in response_text,
+        "'buchen' with a plan must state no real payment was made.",
         failures,
     )
     _assert_german_response(response_text, failures, "'buchen' with prior plan")
@@ -941,7 +1064,7 @@ async def _verify_orchestrator_business_travel_routing(failures: list[str]) -> N
         self, agent_name: str, message: str, context_id: str | None = None
     ) -> str:
         delegated_messages.append((agent_name, message, context_id))
-        if message == "von münster":
+        if message == "von dortmund":
             if context_id:
                 self._active_agent[context_id] = agent_name
             return "Wann müssen Sie in München ankommen oder wann möchten Sie losfahren?"
@@ -965,7 +1088,7 @@ async def _verify_orchestrator_business_travel_routing(failures: list[str]) -> N
     orchestrator._active_agent[context_id] = "Business Travel Agent"
 
     second_response, second_input_required = await orchestrator.invoke(
-        "von münster", context_id=context_id,
+        "von dortmund", context_id=context_id,
     )
     third_response, third_input_required = await orchestrator.invoke(
         "montag um 12 uhr", context_id=context_id,
@@ -976,7 +1099,7 @@ async def _verify_orchestrator_business_travel_routing(failures: list[str]) -> N
 
     _require(
         delegated_messages == [
-            ("Business Travel Agent", "von münster", context_id),
+            ("Business Travel Agent", "von dortmund", context_id),
             ("Business Travel Agent", "montag um 12 uhr", context_id),
             ("Business Travel Agent", "buchen", context_id),
         ],
@@ -1034,6 +1157,100 @@ async def _verify_orchestrator_business_travel_routing(failures: list[str]) -> N
     _require(
         "cities" in root_lower or "dates" in root_lower or "interpret" in root_lower,
         "Orchestrator prompt does not forbid interpreting cities, dates, or times.",
+        failures,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Response format requirements
+# ---------------------------------------------------------------------------
+
+async def _verify_response_format_requirements(failures: list[str]) -> None:
+    """Verifies detailed response format for the Vienna (flight_with_transfers) scenario.
+
+    Checks:
+    - No Markdown bold stars (**) in output
+    - 'Angebot:' used instead of 'offer_id:'
+    - Rejected options listed individually with offer IDs
+    - flight_with_transfers response includes required content (Bausteine, agents, etc.)
+    - ENTSCHEIDUNGSGRUND present
+    - NÄCHSTER SCHRITT with correct booking hint text
+    """
+    seen_offers: dict = {}
+    agent = _make_unit_agent(seen_offers)
+
+    response_text, input_required = await agent.invoke(
+        "Ich muss Montag um 10 Uhr von Dortmund nach Wien.",
+        context_id="verify-format-vienna",
+    )
+
+    context = "Vienna flight_with_transfers format"
+
+    _require(
+        input_required is False,
+        f"{context}: complete request should not require more input.",
+        failures,
+    )
+    _require(
+        "**" not in response_text,
+        f"{context}: response must not contain Markdown bold (**). Found in output.",
+        failures,
+    )
+    _require(
+        "offer_id:" not in response_text,
+        f"{context}: response must use 'Angebot:' not 'offer_id:'.",
+        failures,
+    )
+    _require(
+        "Angebot:" in response_text,
+        f"{context}: response must use 'Angebot:' as the offer ID label.",
+        failures,
+    )
+
+    # flight_with_transfers specific content
+    for keyword in FLIGHT_WITH_TRANSFERS_REQUIRED_CONTENT:
+        _require(
+            keyword in response_text,
+            f"{context}: response missing required keyword: '{keyword}'.",
+            failures,
+        )
+
+    # Rejected options must list individual offer IDs
+    # Vienna bundle has rail-vienna-3 as rejected (first_class policy violation)
+    _require(
+        "rail-vienna-3" in response_text,
+        f"{context}: rejected options must list individual offer IDs (rail-vienna-3 missing).",
+        failures,
+    )
+
+    # decision reason
+    _require(
+        "ENTSCHEIDUNGSGRUND" in response_text,
+        f"{context}: response must contain ENTSCHEIDUNGSGRUND section.",
+        failures,
+    )
+
+    # Booking hint
+    _require(
+        "Es wurde noch keine Buchung erstellt" in response_text,
+        f"{context}: response must contain 'Es wurde noch keine Buchung erstellt'.",
+        failures,
+    )
+    _require(
+        "buchen" in response_text.lower(),
+        f"{context}: NÄCHSTER SCHRITT must instruct user to type 'buchen'.",
+        failures,
+    )
+
+    # No ae/oe/ue umlaut substitutions in section headers
+    _require(
+        "AUSGEWAEHLTE" not in response_text,
+        f"{context}: section headers must use proper umlauts (AUSGEWÄHLTE not AUSGEWAEHLTE).",
+        failures,
+    )
+    _require(
+        "NAECHSTER" not in response_text,
+        f"{context}: section headers must use proper umlauts (NÄCHSTER not NAECHSTER).",
         failures,
     )
 
@@ -1099,6 +1316,7 @@ async def main() -> None:
 
     _verify_booking_path_is_verified(failures)
     await _verify_regression_scenarios(failures)
+    await _verify_response_format_requirements(failures)
     await _verify_incomplete_request_dialog(failures)
     await _verify_no_defaults_for_incomplete_request(failures)
     await _verify_new_trip_resets_decision(failures)
@@ -1118,6 +1336,7 @@ async def main() -> None:
         raise AssertionError(f"{len(failures)} business travel unit verification checks failed.")
 
     print("Booking path: agent uses submit_verified_booking_for_decision exclusively.")
+    print("Response format: plain text, Angebot: label, umlauts, Bausteine, individual rejected options.")
     print("Scenario A selected_offer_id: rail-1")
     print("Scenario B selected_offer_id: flight-1-with-transfers")
     print("Scenario C selected_offer_id: rail-muenster-1")
