@@ -36,15 +36,15 @@ ORCHESTRATOR_URL = "http://localhost:10002"
 def build_agent_card() -> AgentCard:
     """Describes this agent to the outside world — name, skills, capabilities and URL."""
     skill = AgentSkill(
-        id="customer_travel",
-        name="Travel Assistant",
-        description="Helps users plan trips by connecting them to the travel agency system.",
-        tags=["travel", "customer"],
-        examples=["I want to visit Rome", "Find me a hotel in Berlin"],
+        id="enterprise_request",
+        name="Enterprise Request Routing",
+        description="Receives internal enterprise requests and routes them through the agent system.",
+        tags=["enterprise", "routing"],
+        examples=["I need to book a business trip to Berlin", "Plan travel from Munich to Hamburg"],
     )
     return AgentCard(
-        name="Travel Customer Agent",
-        description="Customer-facing agent for the digital travel agency.",
+        name="Enterprise Entry Agent",
+        description="Entry point for internal enterprise requests. Receives user messages and forwards them to the OrchestratorAgent.",
         version="1.0.0",
         capabilities=AgentCapabilities(streaming=False),
         skills=[skill],
@@ -92,7 +92,7 @@ async def main() -> None:
     app = await build_app()
     config = uvicorn.Config(app=app, host=HOST, port=PORT, log_level="info")
     server = uvicorn.Server(config)
-    logger.info(f"Customer Agent starting at http://{HOST}:{PORT}")
+    logger.info(f"Enterprise Entry Agent starting at http://{HOST}:{PORT}")
     await server.serve()
 
 

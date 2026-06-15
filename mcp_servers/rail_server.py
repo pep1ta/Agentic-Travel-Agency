@@ -113,45 +113,12 @@ RAIL_OPTIONS_DORTMUND_VIENNA = [
     },
 ]
 
-RAIL_OPTIONS_MUNSTER_MUNICH = [
-    {
-        "offer_id": "rail-muenster-1",
-        "mode": "rail",
-        "provider": "RailProviderAgent",
-        "operator": "InterCity Railways",
-        "origin": "Münster Hbf",
-        "destination": "München Hbf",
-        "total_price": 129,
-        "duration_minutes": 430,
-        "travel_class": "second_class",
-        "provider_reputation": 82,
-        "arrival_buffer_minutes": 70,
-        "transfers_included": True,
-        "changes": 1,
-    },
-    {
-        "offer_id": "rail-muenster-2",
-        "mode": "rail",
-        "provider": "RailProviderAgent",
-        "operator": "FlexTrack Rail",
-        "origin": "Münster Hbf",
-        "destination": "München Hbf",
-        "total_price": 99,
-        "duration_minutes": 590,
-        "travel_class": "second_class",
-        "provider_reputation": 82,
-        "arrival_buffer_minutes": 45,
-        "transfers_included": True,
-        "changes": 3,
-    },
-]
 
 KNOWN_RAIL_OFFER_IDS = {
     offer["offer_id"]
     for options in [
         RAIL_OPTIONS_DORTMUND_MUNICH,
         RAIL_OPTIONS_DORTMUND_VIENNA,
-        RAIL_OPTIONS_MUNSTER_MUNICH,
     ]
     for offer in options
 }
@@ -188,9 +155,6 @@ def search_rail_options(origin: str, destination: str, appointment_time: str) ->
 
     if "dortmund" in origin_normalized and ("wien" in destination_normalized or "vienna" in destination_normalized):
         return _with_mock_source(RAIL_OPTIONS_DORTMUND_VIENNA)
-
-    if "muenster" in origin_normalized and "muenchen" in destination_normalized:
-        return _with_mock_source(RAIL_OPTIONS_MUNSTER_MUNICH)
 
     return []
 

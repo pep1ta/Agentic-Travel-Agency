@@ -1,7 +1,7 @@
 [project]
-name = "travel-agency"
-version = "0.1.0"
-description = "Add your description here"
+name = "agentic-enterprise-policy-platform"
+version = "1.0.0"
+description = "A prototype for smart-contract-governed enterprise agent coordination with on-chain business travel policy verification."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

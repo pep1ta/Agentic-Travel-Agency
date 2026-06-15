@@ -148,7 +148,7 @@ async def handle_streaming(client, text: str, task_id: str | None = None, contex
 
 async def interactive_loop(client, supports_streaming: bool) -> None:
     """Continuously sends messages to the agent until the user types 'exit'."""
-    print("\nWelcome to our digital Travel Agency! Type your messages below (type 'exit' to quit):")
+    print("\nEnterprise Agent Console — Type your request below (type 'exit' to quit):")
 
     while True:
         query = input("You: ").strip() # Get user input and remove leading/trailing whitespace

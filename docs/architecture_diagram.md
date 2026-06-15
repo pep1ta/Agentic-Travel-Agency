@@ -1,80 +1,97 @@
-# Business Travel Architecture Diagram
+# Enterprise Policy Platform — Architecture Diagram
 
 ```mermaid
 flowchart TD
-    user[User]
-    customer[CustomerAgent]
-    orchestrator[OrchestratorAgent]
-    business[BusinessTravelAgent]
+    user[Enterprise User]
+    customer[Enterprise Entry Agent\nCustomerAgent :10000]
+    orchestrator[OrchestratorAgent :10002]
+    business[BusinessTravelAgent :10004]
 
-    rail[Rail MCP Server]
-    flight[Flight MCP Server]
-    mobility[Mobility MCP Server]
+    registry_chain[BusinessAgentRegistry\nSepolia on-chain]
 
-    smart[SmartContractClient<br/>V1 Policy Gateway]
-    contract[BusinessTravelPolicy.sol<br/>V2 Solidity Contract]
-    approval[Approval Boundary<br/>No automatic booking or payment]
+    rail_agent[RailProviderAgent :10010]
+    flight_agent[FlightProviderAgent :10011]
+    mobility_agent[MobilityProviderAgent :10012]
 
-    selection[Final policy-compliant selection]
+    rail_mcp[Rail MCP Server :8004]
+    flight_mcp[Flight MCP Server :8005]
+    mobility_mcp[Mobility MCP Server :8006]
 
-    subgraph offchain[Off-chain: Agent Coordination and Mock Data]
+    scc[SmartContractClient\neth_call — read-only]
+    policy[BusinessTravelPolicy.sol\nSepolia Testnet]
+
+    booking_client[BookingClient]
+    booking_contract[BusinessTravelBooking.sol\nSepolia Testnet]
+
+    approval[Booking requires explicit user approval]
+
+    subgraph offchain[Off-chain: Agent Coordination]
         user
         customer
         orchestrator
         business
-        rail
-        flight
-        mobility
-        selection
+        rail_agent
+        flight_agent
+        mobility_agent
+        rail_mcp
+        flight_mcp
+        mobility_mcp
+        scc
+        booking_client
     end
 
-    subgraph policy[Policy / Contract Boundary]
-        smart
-        contract
-        rules[Policy Rules<br/>Budget<br/>Travel class<br/>Provider reputation<br/>Rail preference<br/>Transfer requirement<br/>NO_SELECTION]
+    subgraph onchain[On-chain: Sepolia Testnet]
+        registry_chain
+        policy
+        booking_contract
     end
 
-    user -->|User request| customer
-    customer -->|A2A request| orchestrator
+    user -->|Enterprise request| customer
+    customer -->|A2A JSON-RPC| orchestrator
     orchestrator -->|Delegates business travel task| business
 
-    business -->|Search rail options| rail
-    rail -->|Rail offers| business
+    business -->|Discover provider agents| registry_chain
+    registry_chain -->|Agent IDs and A2A URIs| business
 
-    business -->|If valid rail <= 8h exists:<br/>skip Flight/Mobility enrichment| smart
+    business -->|A2A: search rail options| rail_agent
+    rail_agent -->|MCP tool call| rail_mcp
+    rail_mcp -->|Rail offers| rail_agent
+    rail_agent -->|Rail offers| business
 
-    business -->|If no valid rail <= 8h exists:<br/>search flights| flight
-    flight -->|Flight offers| business
-    business -->|Get transfers for economy flight| mobility
-    mobility -->|Transfer data| business
-    business -->|Combined flight_with_transfers offer<br/>and all available offers| smart
+    business -->|If no rail <= 8h: A2A search flights| flight_agent
+    flight_agent -->|MCP tool call| flight_mcp
+    flight_mcp -->|Flight offers| flight_agent
+    flight_agent -->|Flight offers| business
 
-    smart -->|Applies deterministic policy| rules
-    contract -.->|Same policy represented in Solidity| rules
-    rules --> selection
+    business -->|If no rail <= 8h: A2A get transfers| mobility_agent
+    mobility_agent -->|MCP tool call| mobility_mcp
+    mobility_mcp -->|Transfer data| mobility_agent
+    mobility_agent -->|Transfer data| business
 
-    selection -->|Decision result| smart
-    smart -->|Selected offer or NO_SELECTION| business
-    business -->|Explanation only| orchestrator
+    business -->|Offer bundle| scc
+    scc -->|eth_call selectPolicyCompliantOffer| policy
+    policy -->|selected_index and decision| scc
+    scc -->|Policy decision| business
+
+    business -->|Decision result| orchestrator
     orchestrator -->|Response| customer
-    customer -->|Result and approval hint| user
+    customer -->|Policy decision to user| user
 
-    smart --> approval
-    approval -->|Booking/payment require approval| user
+    user -->|Approves booking| booking_client
+    booking_client -->|createVerifiedBooking tx| booking_contract
+    booking_contract -->|Re-runs policy on-chain| policy
+    booking_contract -->|policyVerified=true, offerHash| booking_client
+    booking_client -->|tx hash and Etherscan link| user
+
+    business -.->|No automatic booking| approval
 ```
 
-Der Prototyp trennt Informationsbeschaffung, Koordination und finale Entscheidung. Die Agenten sammeln Reiseoptionen, strukturieren sie und fuehren den Nutzer durch den Prozess, ohne die rechtlich oder organisatorisch relevante Auswahl selbst zu treffen.
+Der Prototyp trennt Informationsbeschaffung, Koordination und finale Entscheidung in drei Schichten.
 
-Ein LLM kann in diesem System beim Verstehen einer Anfrage, bei der Delegation und bei der sprachlichen Erklaerung helfen. Es ist jedoch nicht die Instanz, die entscheidet, welche Reiseoption policy-konform gewinnt.
+**Koordinationsschicht (Off-chain):** Der `BusinessTravelAgent` entdeckt Provider-Agenten zur Laufzeit aus dem `BusinessAgentRegistry` auf Sepolia. Er ruft `RailProviderAgent`, `FlightProviderAgent` und `MobilityProviderAgent` via A2A auf, die wiederum ihre jeweiligen MCP-Server nutzen. Das kombinierte Angebot (`flight_with_transfers`) entsteht durch Zusammenfuehren eines Flugangebots mit Transferdaten — der Agent entscheidet nur, ob Flight/Mobility-Anreicherung noetig ist, nicht welches Angebot gewinnt.
 
-Der `BusinessTravelAgent` koordiniert die MCP-Server. Zuerst werden Bahnoptionen abgefragt. Wenn eine gueltige Bahnoption unter oder gleich acht Stunden existiert, wird Flight/Mobility-Enrichment uebersprungen, weil die Policy Bahn in diesem Fall bevorzugt.
+**Policy-Schicht (On-chain, read-only):** Der `SmartContractClient` ruft `BusinessTravelPolicy.selectPolicyCompliantOffer` via `eth_call` auf — keine Transaktion, keine Gaskosten. Der Solidity-Contract prueft Bahnpraeferenz, Budget, Reiseklasse, Provider-Reputation, Transferpflicht und gibt `NO_SELECTION` (`type(uint256).max`) zurueck, wenn kein Angebot policy-konform ist. LLM und Agent koennen das Ergebnis erklaeren, aber nicht veraendern.
 
-Wenn keine gueltige Bahnoption unter oder gleich acht Stunden existiert, ruft der `BusinessTravelAgent` zusaetzlich den Flight MCP Server und den Mobility MCP Server auf. Daraus wird ein kombiniertes Angebot mit `mode == "flight_with_transfers"` gebaut und zusammen mit den verfuegbaren Angeboten an die Policy-Schicht uebergeben.
+**Buchungsschicht (On-chain, Transaktion):** Erst nach expliziter Nutzerfreigabe ruft der `BookingClient` `BusinessTravelBooking.createVerifiedBooking` auf. Der Booking-Contract fuehrt `selectPolicyCompliantOffer` erneut on-chain aus und vergleicht das Ergebnis mit dem uebergebenen `selected_index` — eine Manipulation zwischen Policy-Aufruf und Buchung wuerde zur Reversion fuehren. Gespeichert werden `policyVerified=true` und ein `offerHash` als kryptografischer Fingerabdruck des verifizierten Angebots. Es handelt sich um eine Sepolia-Simulation — keine echte Reisebuchung, keine echte Zahlung.
 
-Der `SmartContractClient` simuliert in V1 die Smart-Contract-Policy. Er prueft Budget, Reiseklasse, Provider-Reputation, Bahnprioritaet, Transferpflicht und den Fall `NO_SELECTION`. Die finale Auswahl erfolgt deterministisch in dieser Komponente.
-
-Der Solidity Contract `contracts/BusinessTravelPolicy.sol` zeigt in V2, dass dieselbe Policy auch als Smart-Contract-Logik abbildbar ist. Der laufende Python-Prototyp nutzt weiterhin den `SmartContractClient`-Mock; eine Python-Web3-Integration ist nicht Teil dieser Version.
-
-A2A Multi-Turn dient nur dazu, fehlende Angaben wie den Startpunkt nachzufragen und im bestehenden Kontext zu ergaenzen. Diese Rueckfragen veraendern nicht die Policy-Entscheidung und geben dem Agenten keine finale Entscheidungsmacht.
-
-Buchung und Zahlung werden nicht automatisch ausgefuehrt. Das Ergebnis enthaelt nur den Hinweis, dass eine Genehmigung erforderlich ist; die eigentliche Freigabe liegt ausserhalb dieses Prototyps.
+**A2A Multi-Turn:** Fehlende Angaben (z.B. Startpunkt) werden kontrolliert nachgefragt. Der A2A-Kontext bleibt erhalten; Folgeantworten werden als fehlende Slots interpretiert. Die Policy-Entscheidung wird dadurch nicht veraendert.

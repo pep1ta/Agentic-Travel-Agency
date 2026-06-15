@@ -49,10 +49,10 @@ def build_agent_card() -> AgentCard:
     )
 
     return AgentCard(
-        name="Travel Orchestrator",
+        name="Enterprise Orchestrator",
         description=(
-            "Orchestrates the digital travel agency multi-agent system. "
-            "For business travel, final policy selection is delegated to the SmartContractClient."
+            "Orchestrates enterprise agent coordination. "
+            "Delegates business travel requests to BusinessTravelAgent; final policy selection is enforced by the on-chain BusinessTravelPolicy contract."
         ),
         version="1.0.0",
         capabilities=AgentCapabilities(streaming=False),

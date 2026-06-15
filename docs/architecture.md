@@ -1,19 +1,19 @@
-# Business Travel Prototype Architecture
+# Agentic Enterprise Policy Platform — Architecture
 
-This document describes the architecture of the Smart-Contract-governed Business Travel Planning prototype.
+This document describes the architecture of the enterprise agent coordination prototype with on-chain business travel policy enforcement.
 
 ## 1. Goal of the Architecture
 
-The prototype demonstrates controlled agent autonomy in a business travel planning scenario.
+The prototype demonstrates controlled agent autonomy in a corporate business travel scenario.
 
 The central idea is:
 
-- Agents collect and coordinate information.
-- MCP servers provide structured mock data.
-- The final rule-based selection is made by `SmartContractClient` in V1 and by a Solidity smart contract model in V2.
-- Booking and payment are not executed automatically.
+- Specialized provider agents collect and structure travel offers via MCP servers.
+- The BusinessTravelAgent coordinates these agents and prepares an offer bundle.
+- The final rule-based selection is made by the deployed `BusinessTravelPolicy` Solidity contract on Sepolia, called from the Python `SmartContractClient` via Web3.
+- A booking requires explicit approval and is submitted as a verified Sepolia transaction via `BusinessTravelBooking.createVerifiedBooking`.
 
-The architecture separates coordination from decision authority. Agents may act autonomously within the workflow, but the final policy-relevant decision is constrained by explicit policy logic.
+The architecture separates coordination from decision authority. Agents act autonomously within the workflow, but the final policy-relevant decision is enforced by on-chain contract logic.
 
 ## 2. Core Principle: Agent != LLM
 
@@ -21,233 +21,192 @@ In this prototype, an agent is not the same thing as an LLM.
 
 An agent is a stateful, goal-oriented system component. It receives a task, coordinates calls to other components, structures information, and returns a result.
 
-The LLM is used only for language-related tasks such as:
+The LLM is used only for language-related tasks:
 
 - understanding user intent,
 - delegating to the right agent,
 - explaining results in natural language.
 
-The LLM does not make the final policy decision. The final decision is made by deterministic policy logic in `SmartContractClient` or, in V2, the Solidity `BusinessTravelPolicy` contract.
+The LLM does not make the final policy decision. The final decision is made by the Solidity `BusinessTravelPolicy` contract deployed on Sepolia.
 
 ## 3. Components
 
-### CustomerAgent
+### Enterprise Entry Agent (CustomerAgent)
 
-The `CustomerAgent` is the user-facing entry point. It receives user messages and forwards them into the A2A system.
+The entry point for internal enterprise requests. It receives user messages and forwards them to the `OrchestratorAgent` via the A2A protocol.
 
 ### OrchestratorAgent
 
-The `OrchestratorAgent` delegates requests to the appropriate sub-agent. For business travel planning, it delegates to the `BusinessTravelAgent`.
+Delegates requests to the appropriate specialized agent. For business travel planning, it delegates to the `BusinessTravelAgent`.
 
 ### BusinessTravelAgent
 
-The `BusinessTravelAgent` coordinates the business travel workflow. It extracts simple origin/destination information, calls MCP servers, structures travel offers, and passes the offer bundle to the policy component.
+Coordinates the business travel workflow. It extracts origin/destination from the user request, discovers provider agents from the on-chain `BusinessAgentRegistry`, calls provider agents via A2A, structures the collected travel offers, and passes the offer bundle to the policy layer.
 
 It does not make the final travel selection.
 
-### Rail MCP Server
+### RailProviderAgent / FlightProviderAgent / MobilityProviderAgent
 
-The Rail MCP Server provides mock rail offers. For example:
+Provider agents discovered at runtime from the `BusinessAgentRegistry` on Sepolia. Each agent wraps a dedicated MCP server that provides mock travel data:
 
-- Dortmund -> München includes a valid rail option under 8 hours.
-- Dortmund -> Wien does not include a valid rail option under 8 hours.
+- **RailProviderAgent**: mock rail offers from `RailMCPServer`.
+- **FlightProviderAgent**: mock flight offers from `FlightMCPServer`.
+- **MobilityProviderAgent**: mock airport transfer data from `MobilityMCPServer`.
 
-### Flight MCP Server
-
-The Flight MCP Server provides mock flight offers. These are raw flight offers and do not include airport transfers.
-
-### Mobility MCP Server
-
-The Mobility MCP Server provides mock airport transfer data. The `BusinessTravelAgent` combines this data with a flight offer to build a `flight_with_transfers` offer.
+The `BusinessTravelAgent` combines a flight offer with transfer data to build a `flight_with_transfers` offer when needed.
 
 ### SmartContractClient
 
-The `SmartContractClient` is the V1 Python mock of a smart contract. It applies the business travel policy and selects the policy-compliant offer.
+Calls the deployed `BusinessTravelPolicy` Solidity contract on Sepolia via `eth_call` (read-only, no transaction). Returns `selected_index`, `considered_offers`, `selected_offer`, and a decision reason. No local policy logic — all selection happens on-chain.
 
-### Solidity BusinessTravelPolicy Contract
+### BusinessTravelPolicy (Solidity, Sepolia)
 
-The Solidity contract `contracts/BusinessTravelPolicy.sol` implements the same policy logic as a local smart contract model. It is tested with Hardhat but is not yet integrated into the Python agent runtime.
+Deployed smart contract that applies the business travel policy deterministically:
+
+- Rail preference: valid rail options (duration <= 480 minutes) win over flights.
+- Budget: maximum 600 EUR.
+- Travel class: economy or 2nd class only.
+- Provider reputation: minimum 70.
+- Transfer requirement: flights must include transfers.
+- `NO_SELECTION` (`type(uint256).max`) if no offer is policy-compliant.
+
+### BusinessAgentRegistry (Solidity, Sepolia)
+
+On-chain registry that maps capability strings (e.g. `business_travel`, `rail`, `flight`, `mobility`) to agent IDs and A2A URIs. The `BusinessTravelAgent` discovers provider agents from this registry at runtime.
+
+### BookingClient
+
+Submits a Sepolia testnet transaction via `BusinessTravelBooking.createVerifiedBooking`. The contract re-runs `selectPolicyCompliantOffer` on-chain and stores `policyVerified=true` and an `offerHash` in the booking record. This is a simulation — no real travel booking, no real payment.
 
 ## 4. Data Flow
 
-The main data flow is:
-
 ```text
 User Request
-  -> CustomerAgent
+  -> Enterprise Entry Agent (CustomerAgent)
   -> OrchestratorAgent
   -> BusinessTravelAgent
-  -> Rail / Flight / Mobility MCP Servers
-  -> Offer Bundle
-  -> SmartContractClient
-  -> Result with Approval Hint
+     -> BusinessAgentRegistry (Sepolia, read-only) — discover provider agent IDs and URIs
+     -> RailProviderAgent (A2A) -> RailMCPServer
+     -> [if no rail <= 480 min]: FlightProviderAgent (A2A) -> FlightMCPServer
+     -> [if no rail <= 480 min]: MobilityProviderAgent (A2A) -> MobilityMCPServer
+     -> SmartContractClient -> BusinessTravelPolicy.sol (Sepolia, eth_call)
+     -> Policy decision (selected_index, selected_offer, considered_offers)
+  -> Response with policy decision to user (no booking executed)
+
+[If user explicitly requests booking:]
+  -> BookingClient -> BusinessTravelBooking.createVerifiedBooking (Sepolia tx)
+  -> Booking result with tx hash and Etherscan link
 ```
-
-Example:
-
-```text
-Ich muss Montag um 10 Uhr von Dortmund nach München.
-```
-
-The `BusinessTravelAgent` extracts:
-
-- origin: Dortmund
-- destination: München
-
-It then fetches travel options, structures them as dictionaries, and passes them to `SmartContractClient.select_policy_compliant_offer(...)`.
-
-The result contains:
-
-- selected offer,
-- rejected offers,
-- decision reason,
-- `booking_requires_approval = True`.
 
 ### A2A Multi-Turn Slot Filling
 
-The prototype also supports A2A Multi-Turn for missing request data.
+The prototype supports A2A multi-turn for missing request data.
 
 Example:
 
 ```text
 Turn 1: Ich muss Montag um 10 Uhr in München sein.
-Turn 2: Münster
+Turn 2: Dortmund
 ```
 
-In Turn 1, the `BusinessTravelAgent` can identify the destination München, but the origin is missing. It returns an input-required response and keeps a small in-memory state for the A2A context.
+In Turn 1, the `BusinessTravelAgent` identifies the destination München but the origin is missing. It returns an input-required response and preserves state for the A2A context.
 
-In Turn 2, Münster is interpreted as the missing origin. The original destination and appointment time are reused, and planning continues for Münster -> München.
+In Turn 2, Dortmund is interpreted as the missing origin. The original destination and appointment time are reused, and planning continues for Dortmund -> München.
 
-This multi-turn behavior only completes the request. It does not change the governance model: the final policy decision is still made by `SmartContractClient` or the smart contract policy.
+Multi-turn only completes missing request data. The governance model is unchanged: the final policy decision is still made by the `BusinessTravelPolicy` contract.
 
 ## 5. Policy-aware Enrichment
 
 The `BusinessTravelAgent` uses policy-aware enrichment to avoid unnecessary tool calls.
 
-If a valid rail option under or equal to 8 hours exists:
+If a valid rail option (duration <= 480 minutes) exists:
 
 - Flight/Mobility enrichment is skipped.
-- Rail options are passed to the `SmartContractClient`.
-- The agent does not choose the winner itself.
+- Rail options are passed directly to `SmartContractClient`.
 
-If no valid rail option under or equal to 8 hours exists:
+If no valid rail option exists:
 
-- Flight options are fetched.
-- Mobility transfers are fetched.
-- The first economy flight is combined with transfer data.
-- The combined `flight_with_transfers` offer is passed to the `SmartContractClient`.
+- Flight options are fetched from `FlightProviderAgent`.
+- Airport transfers are fetched from `MobilityProviderAgent`.
+- The first economy flight is combined with transfer data into a `flight_with_transfers` offer.
+- All offers are passed to `SmartContractClient`.
 
-This optimization is still not the final decision. It only decides which information must be prepared before policy evaluation.
+This optimization decides only which information needs to be prepared before policy evaluation — not which offer wins.
 
 ## 6. On-chain / Off-chain Separation
 
 ### Off-chain
 
-The following parts are off-chain in the prototype:
+- User request and natural language processing.
+- Agent coordination (A2A protocol).
+- MCP server calls and mock travel data.
+- Response explanation to the user (LLM-rendered).
 
-- user request,
-- agent coordination,
-- MCP tool calls,
-- mock travel offers,
-- response explanation to the user.
+### On-chain (Sepolia testnet)
 
-These parts are flexible and interaction-oriented.
+- `BusinessAgentRegistry`: agent discovery by capability.
+- `BusinessTravelPolicy`: deterministic policy evaluation via `eth_call`.
+- `BusinessTravelBooking`: verified booking record with `policyVerified=true`, `offerHash`, and ETH escrow simulation.
 
-### Policy / Smart Contract
+### What is NOT on-chain
 
-The policy layer contains the hard selection rules:
+- Real travel data or live provider APIs.
+- Real payment or real booking confirmation.
+- Production identity or settlement infrastructure.
 
-- budget,
-- provider reputation,
-- travel class,
-- rail preference,
-- transfer requirement,
-- `NO_SELECTION`.
-
-This layer is the decision authority. In V1 it is represented by the Python `SmartContractClient`. In V2 it is also represented by the Solidity `BusinessTravelPolicy` contract.
-
-## 7. V1 and V2
-
-### V1
-
-V1 contains:
-
-- Python `SmartContractClient` mock,
-- working A2A/MCP agent prototype,
-- mock rail, flight, and mobility data,
-- no real blockchain.
-
-V1 is the executable agent demo.
-
-### V2
-
-V2 adds:
-
-- Solidity contract `contracts/BusinessTravelPolicy.sol`,
-- local Hardhat tests,
-- the same core policy logic as the Python mock.
-
-V2 does not yet include:
-
-- Python-Web3 integration,
-- testnet deployment,
-- real on-chain payment or booking.
-
-## 8. Verified Scenarios
+## 7. Verified Scenarios
 
 ### Scenario A: Dortmund -> München
 
 - A valid rail option under 8 hours exists.
 - Flight/Mobility enrichment is skipped.
-- Selected offer: `rail-1`.
+- `BusinessTravelPolicy` selects `rail-1`.
+- `policyVerified=true` in Sepolia booking simulation.
 
 ### Scenario B: Dortmund -> Wien
 
 - No valid rail option under 8 hours exists.
-- Flight + Mobility are included.
+- FlightProviderAgent + MobilityProviderAgent are called.
 - A `flight_with_transfers` offer is built.
-- Selected offer: `flight-1-with-transfers`.
+- `BusinessTravelPolicy` selects `flight-1-with-transfers`.
 
-### Scenario C: Münster -> München via Multi-Turn
+### Scenario C: Dortmund -> München via Multi-Turn
 
 - Turn 1 provides destination München and appointment time.
-- Turn 2 provides the missing origin Münster.
+- Turn 2 provides the missing origin Dortmund.
 - The A2A context is reused.
-- Planning runs for Münster -> München.
-- Multi-turn affects only slot filling, not policy selection.
+- Multi-turn does not change the policy selection.
 
-Both scenarios are verified by:
+Verified by:
 
 ```text
-uv run python scripts/verify_business_travel.py
+uv run python test/business_travel/unit/verify_business_travel_unit.py
+uv run python test/business_travel/integration/verify_business_travel.py
+uv run python test/business_travel/integration/verify_customer_orchestrator_business_travel.py
 npx hardhat test
 ```
 
-## 9. Security and Governance Meaning
+## 8. Security and Governance
 
-The smart contract policy layer acts as a safety anchor.
+The on-chain policy layer acts as a safety anchor.
 
 It provides:
 
-- a technically enforceable action framework,
-- deterministic policy checks,
-- separation between information gathering and final decision-making,
-- auditable decision reasons,
-- no booking or payment without approval.
+- technically enforceable selection rules,
+- deterministic policy checks independent of agent or LLM behavior,
+- separation between information gathering and final decision authority,
+- an auditable `offerHash` in the on-chain booking record,
+- no booking or payment without explicit user approval.
 
-This is important for business travel because travel decisions often have organizational, legal, and financial consequences.
-
-## 10. Deliberate Limits
+## 9. Deliberate Limits
 
 The prototype intentionally does not include:
 
-- real travel APIs,
-- real payment,
-- real blockchain integration in the Python agent,
-- ERC-8004,
-- ERC-8183,
-- 8004scan,
-- full travel optimization,
-- production-grade identity, wallet, or settlement infrastructure.
+- real travel APIs or live provider data,
+- real payment or production settlement,
+- production-grade identity, wallet, or KYC infrastructure,
+- ERC-8004 or ERC-8183 compliance,
+- full travel optimization or multi-leg routing,
+- automatic booking without approval.
 
-These limits keep the system small enough for a focused master thesis demo while preserving the central architectural idea: agents coordinate, policy decides.
+These limits keep the system focused on the central architectural question: agents coordinate, policy decides.

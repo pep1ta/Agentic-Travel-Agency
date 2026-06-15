@@ -1,7 +1,7 @@
 {
-  "name": "businesstravelagencynew",
+  "name": "agentic-enterprise-policy-platform",
   "version": "1.0.0",
-  "description": "This repository contains a small didactic prototype for controlled agent autonomy in business travel planning.",
+  "description": "A prototype for smart-contract-governed enterprise agent coordination with on-chain business travel policy verification.",
   "main": "index.js",
   "type": "module",
   "directories": {
@@ -10,17 +10,9 @@
   "scripts": {
     "test": "hardhat test"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pep1ta/Agentic-Travel-Agency.git"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/pep1ta/Agentic-Travel-Agency/issues"
-  },
-  "homepage": "https://github.com/pep1ta/Agentic-Travel-Agency#readme",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
     "hardhat": "^3.9.0"
